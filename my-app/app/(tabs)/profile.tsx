@@ -87,7 +87,7 @@ export default function ProfileScreen() {
         </ThemedView>
 
         {/* Stats Section */}
-        <ThemedView style={styles.cardContainer}> // Use card style
+        <ThemedView style={styles.cardContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Stats</ThemedText>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
@@ -102,11 +102,11 @@ export default function ProfileScreen() {
         </ThemedView>
 
         {/* Badges Section */}
-        <ThemedView style={styles.cardContainer}> // Use card style
+        <ThemedView style={styles.cardContainer}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Badges</ThemedText>
           <View style={styles.badgesGrid}>
             {userData.badges.map((badge, index) => (
-              <Badge key={index} name={badge} /> // Already themed
+              <Badge key={index} name={badge} />
             ))}
           </View>
         </ThemedView>
