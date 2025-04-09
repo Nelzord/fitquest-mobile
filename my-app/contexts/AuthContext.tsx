@@ -28,21 +28,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuthStatus = async () => {
     try {
+      console.log('🔍 Starting auth status check...');
       const { data: { session }, error } = await supabase.auth.getSession();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error getting session:', error);
+        throw error;
+      }
       
       if (session) {
+        console.log('✅ Session found:', {
+          userId: session.user.id,
+          email: session.user.email,
+          expiresAt: session.expires_at
+        });
         setUser(session.user);
         setIsAuthenticated(true);
         setIsGuest(false);
       } else {
+        console.log('⚠️ No active session found');
         const guestStatus = await AsyncStorage.getItem('is_guest');
+        console.log('Guest status:', guestStatus);
         setIsGuest(guestStatus === 'true');
       }
     } catch (error) {
-      console.error('Error checking auth status:', error);
+      console.error('❌ Error in checkAuthStatus:', error);
     } finally {
+      console.log('🏁 Auth check completed');
       setLoading(false);
     }
   };
@@ -68,12 +80,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (email: string, password: string) => {
     try {
+      // First, sign up the user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (error) throw error;
+
+      // The trigger will automatically create the user record in the users table
+      // We can update the user record with additional information if needed
+      if (data.user) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            email: data.user.email ?? email, // Use provided email if user.email is undefined
+            name: (data.user.email ?? email).split('@')[0], // Set a default name from email
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', data.user.id);
+
+        if (updateError) throw updateError;
+      }
 
       setUser(data.user);
       setIsAuthenticated(true);

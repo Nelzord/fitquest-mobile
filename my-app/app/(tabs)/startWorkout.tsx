@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol'; // Assuming IconSymbol exists
 import commonWorkoutsJson from '@/assets/data/commonWorkouts.json'; // Import as raw JSON
 import { Colors } from '@/constants/Colors'; // Import Colors
 import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Import for safe area
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CommonExercise {
   name: string;
@@ -267,13 +269,15 @@ const TopWorkoutControlPanel = ({
   onStart,
   onFinish,
   onReset,
-  isWorkoutActive 
+  isWorkoutActive,
+  isSaving
 }: {
   time: number,
   onStart: () => void,
   onFinish: () => void,
   onReset: () => void,
-  isWorkoutActive: boolean
+  isWorkoutActive: boolean,
+  isSaving: boolean
 }) => {
   const colorScheme = useRNColorScheme() ?? 'light';
   const styles = getStyles(colorScheme);
@@ -318,10 +322,15 @@ const TopWorkoutControlPanel = ({
             <TouchableOpacity 
               onPress={handleFinishPress}
               activeOpacity={0.7}
+              disabled={isSaving}
             >
-              <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].danger }]}>
-                Finish Workout
-              </ThemedText>
+              {isSaving ? (
+                <ActivityIndicator color={Colors[colorScheme].danger} />
+              ) : (
+                <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].danger }]}>
+                  Finish Workout
+                </ThemedText>
+              )}
             </TouchableOpacity>
           </>
         ) : (
@@ -379,8 +388,10 @@ export default function StartWorkoutScreen() {
   const [isBrowsingModalVisible, setIsBrowsingModalVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [time, setTime] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { user } = useAuth();
 
   // Memoize filtered data - now includes category filtering
   const filteredWorkoutData = useMemo(() => {
@@ -527,11 +538,74 @@ export default function StartWorkoutScreen() {
     setTime(0);
   };
 
-  const finishWorkout = () => {
-    setIsWorkoutActive(false);
-    // Reset exercises with a default type
-    setExercises([{ id: Date.now().toString(), name: '', type: 'standard', sets: [] }]);
-    setNotes('');
+  const finishWorkout = async () => {
+    if (!user) {
+      console.error('No user found');
+      return;
+    }
+
+    console.log('User ID:', user.id);
+
+    setIsSaving(true);
+    try {
+      // 1. Create the workout record
+      const { data: workoutData, error: workoutError } = await supabase
+        .from('workouts')
+        .insert({
+          user_id: user.id,
+          notes: notes,
+          duration: time,
+        })
+        .select()
+        .single();
+
+      if (workoutError) {
+        console.error('Workout error:', workoutError);
+        throw workoutError;
+      }
+
+      // 2. Create exercise records
+      for (const exercise of exercises) {
+        const { data: exerciseData, error: exerciseError } = await supabase
+          .from('exercises')
+          .insert({
+            workout_id: workoutData.id,
+            name: exercise.name,
+            type: exercise.type,
+          })
+          .select()
+          .single();
+
+        if (exerciseError) throw exerciseError;
+
+        // 3. Create set records
+        for (const set of exercise.sets) {
+          const { error: setError } = await supabase
+            .from('sets')
+            .insert({
+              exercise_id: exerciseData.id,
+              reps: set.reps,
+              weight: set.weight,
+              duration: set.duration,
+              distance: set.distance,
+              completed: set.completed,
+            });
+
+          if (setError) throw setError;
+        }
+      }
+
+      // Reset the workout state
+      setIsWorkoutActive(false);
+      setExercises([{ id: Date.now().toString(), name: '', type: 'standard', sets: [] }]);
+      setNotes('');
+      setTime(0);
+    } catch (error) {
+      console.error('Error saving workout:', error);
+      // You might want to show an error message to the user here
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const resetTimer = () => {
@@ -553,6 +627,7 @@ export default function StartWorkoutScreen() {
             onFinish={finishWorkout}
             onReset={resetTimer}
             isWorkoutActive={isWorkoutActive} 
+            isSaving={isSaving}
           />
 
           <ScrollView 
