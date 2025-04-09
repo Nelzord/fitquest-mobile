@@ -265,16 +265,19 @@ const ExerciseItem = ({
 const TopWorkoutControlPanel = ({ 
   time, 
   onStart,
-  onFinish, 
+  onFinish,
+  onReset,
   isWorkoutActive 
 }: {
   time: number,
   onStart: () => void,
   onFinish: () => void,
+  onReset: () => void,
   isWorkoutActive: boolean
 }) => {
   const colorScheme = useRNColorScheme() ?? 'light';
   const styles = getStyles(colorScheme);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -282,28 +285,87 @@ const TopWorkoutControlPanel = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleFinishPress = () => {
+    setShowFinishConfirm(true);
+  };
+
+  const handleConfirmFinish = () => {
+    setShowFinishConfirm(false);
+    onFinish();
+  };
+
+  const handleCancelFinish = () => {
+    setShowFinishConfirm(false);
+  };
+
   return (
-    <TouchableOpacity 
-      style={[
+    <>
+      <View style={[
         styles.topPanelContainer,
         isWorkoutActive ? styles.topPanelActive : styles.topPanelInactive 
-      ]}
-      onPress={isWorkoutActive ? onFinish : onStart} 
-      activeOpacity={0.7}
-    >
-      {isWorkoutActive ? (
-        <>
-          <ThemedText style={styles.timerText}>{formatTime(time)}</ThemedText>
-          <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].danger }]}>
-            Tap to Finish
-          </ThemedText>
-        </>
-      ) : (
-        <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].tint }]}>
-          Start Workout
-        </ThemedText>
-      )}
-    </TouchableOpacity>
+      ]}>
+        {isWorkoutActive ? (
+          <>
+            <View style={styles.timerContainer}>
+              <ThemedText style={styles.timerText}>{formatTime(time)}</ThemedText>
+              <TouchableOpacity 
+                style={styles.resetButton}
+                onPress={onReset}
+              >
+                <IconSymbol name="arrow.clockwise" size={16} color={Colors[colorScheme].tint} />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity 
+              onPress={handleFinishPress}
+              activeOpacity={0.7}
+            >
+              <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].danger }]}>
+                Finish Workout
+              </ThemedText>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity 
+            onPress={onStart}
+            activeOpacity={0.7}
+          >
+            <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].tint }]}>
+              Start Workout
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Finish Confirmation Modal */}
+      <Modal
+        visible={showFinishConfirm}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmationModal}>
+            <ThemedText style={styles.confirmationTitle}>Finish Workout?</ThemedText>
+            <ThemedText style={styles.confirmationText}>
+              Are you sure you want to finish this workout? This action cannot be undone.
+            </ThemedText>
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity 
+                style={[styles.confirmationButton, styles.cancelButton]}
+                onPress={handleCancelFinish}
+              >
+                <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.confirmationButton, styles.finishButton]}
+                onPress={handleConfirmFinish}
+              >
+                <ThemedText style={styles.finishButtonText}>Finish</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 };
 
@@ -472,6 +534,10 @@ export default function StartWorkoutScreen() {
     setNotes('');
   };
 
+  const resetTimer = () => {
+    setTime(0);
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -480,11 +546,12 @@ export default function StartWorkoutScreen() {
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ThemedView style={[styles.mainContentContainer, { paddingTop: insets.top }]}>
-          {/* Render Top Control Panel */} 
+          {/* Render Top Control Panel with new props */}
           <TopWorkoutControlPanel 
             time={time} 
             onStart={startWorkout} 
-            onFinish={finishWorkout} 
+            onFinish={finishWorkout}
+            onReset={resetTimer}
             isWorkoutActive={isWorkoutActive} 
           />
 
@@ -896,5 +963,65 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   singleSetInputHeader: { // Style for bodyweight reps header
     flex: 2.2, // Match input flex
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  resetButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmationModal: {
+    backgroundColor: Colors[colorScheme].cardBackground,
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  confirmationTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  confirmationText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: Colors[colorScheme].placeholderText,
+  },
+  confirmationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  confirmationButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  finishButton: {
+    backgroundColor: Colors[colorScheme].danger,
+  },
+  cancelButtonText: {
+    color: Colors[colorScheme].text,
+    fontWeight: '600',
+  },
+  finishButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
 }); 
