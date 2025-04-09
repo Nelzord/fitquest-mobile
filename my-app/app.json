@@ -17,14 +17,17 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.myapp"
+      "bundleIdentifier": "com.johnnelson.fitquest",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourcompany.myapp"
+      "package": "com.johnnelson.fitquest"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"

@@ -8,6 +8,12 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
+interface TabBarIconProps {
+  color: string;
+  size: number;
+  focused: boolean;
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
@@ -27,17 +33,31 @@ export default function TabLayout() {
         }),
       }}>
       <Tabs.Screen
-        name="index"
+        name="startWorkout"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Start Workout',
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="figure.walk" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="workoutHistory"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'History',
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="clock.arrow.circlepath" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="person.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="workoutDetail"
+        options={{
+          title: 'Workout Detail',
+          href: null,
         }}
       />
     </Tabs>

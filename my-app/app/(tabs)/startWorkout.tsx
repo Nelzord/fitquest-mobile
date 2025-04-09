@@ -1,0 +1,900 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { IconSymbol } from '@/components/ui/IconSymbol'; // Assuming IconSymbol exists
+import commonWorkoutsJson from '@/assets/data/commonWorkouts.json'; // Import as raw JSON
+import { Colors } from '@/constants/Colors'; // Import Colors
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Import for safe area
+
+interface CommonExercise {
+  name: string;
+  muscle: string;
+  equipment?: string;
+  type: 'standard' | 'bodyweight' | 'timed';
+}
+
+interface WorkoutCategory {
+  name: string;
+  exercises: CommonExercise[];
+}
+
+interface WorkoutData {
+  categories: WorkoutCategory[];
+}
+
+// Process the raw JSON to create a correctly typed data structure
+const commonWorkoutsData: WorkoutData = {
+  categories: commonWorkoutsJson.categories.map(category => ({
+    ...category,
+    exercises: category.exercises.map(exercise => ({
+      ...exercise,
+      // Assert the type here to satisfy TypeScript
+      type: exercise.type as CommonExercise['type'], 
+    })),
+  })),
+};
+
+// Define the structure for a single set/entry
+interface Set {
+  id: string;
+  completed: boolean;
+  reps?: string;      // Optional: For standard/bodyweight
+  weight?: string;    // Optional: For standard only
+  duration?: string;  // Optional: For timed (e.g., "MM:SS")
+  distance?: string;  // Optional: For timed (e.g., "5km")
+}
+
+interface Exercise {
+  id: string;
+  name: string;
+  type: 'standard' | 'bodyweight' | 'timed'; // Add type to main exercise state
+  sets: Set[]; // Can represent sets or timed entries
+}
+
+// Update props to include set handlers
+const ExerciseItem = ({
+  item,
+  onUpdateName,
+  onAddSet,
+  onUpdateSet,
+  onRemoveSet,
+  onRemoveExercise
+}: {
+  item: Exercise,
+  onUpdateName: (id: string, name: string) => void,
+  onAddSet: (exerciseId: string) => void,
+  onUpdateSet: (exerciseId: string, setId: string, field: keyof Set, value: string | boolean) => void,
+  onRemoveSet: (exerciseId: string, setId: string) => void,
+  onRemoveExercise: (exerciseId: string) => void
+}) => {
+  const colorScheme = useRNColorScheme() ?? 'light';
+  const styles = getStyles(colorScheme);
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  // Helper to render the correct set row inputs based on type
+  const renderSetInputs = (set: Set) => {
+    switch (item.type) {
+      case 'standard':
+        return (
+          <>
+            <TextInput
+              style={[styles.exerciseInput, styles.numericInput, styles.setInput]}
+              placeholder="Reps"
+              value={set.reps ?? ''} // Use ?? '' for optional fields
+              onChangeText={(text) => onUpdateSet(item.id, set.id, 'reps', text)}
+              keyboardType="numeric"
+              editable={!set.completed}
+              placeholderTextColor={Colors[colorScheme].placeholderText}
+            />
+            <TextInput
+              style={[styles.exerciseInput, styles.numericInput, styles.setInput]}
+              placeholder="Wt"
+              value={set.weight ?? ''} // Use ?? '' for optional fields
+              onChangeText={(text) => onUpdateSet(item.id, set.id, 'weight', text)}
+              keyboardType="numeric"
+              editable={!set.completed}
+              placeholderTextColor={Colors[colorScheme].placeholderText}
+            />
+          </>
+        );
+      case 'bodyweight':
+        return (
+          <TextInput
+            style={[styles.exerciseInput, styles.numericInput, styles.setInput, styles.singleSetInput] // Style to take more space
+            }
+            placeholder="Reps"
+            value={set.reps ?? ''} // Use ?? '' for optional fields
+            onChangeText={(text) => onUpdateSet(item.id, set.id, 'reps', text)}
+            keyboardType="numeric"
+            editable={!set.completed}
+            placeholderTextColor={Colors[colorScheme].placeholderText}
+          />
+        );
+      case 'timed':
+        return (
+          <>
+            <TextInput
+              style={[styles.exerciseInput, styles.numericInput, styles.setInput]}
+              placeholder="MM:SS"
+              value={set.duration ?? ''} // Use ?? '' for optional fields
+              onChangeText={(text) => onUpdateSet(item.id, set.id, 'duration', text)}
+              keyboardType="numbers-and-punctuation" // Allow colon
+              editable={!set.completed}
+              placeholderTextColor={Colors[colorScheme].placeholderText}
+            />
+            <TextInput
+              style={[styles.exerciseInput, styles.numericInput, styles.setInput]}
+              placeholder="Dist."
+              value={set.distance ?? ''} // Use ?? '' for optional fields
+              onChangeText={(text) => onUpdateSet(item.id, set.id, 'distance', text)}
+              keyboardType="default"
+              editable={!set.completed}
+              placeholderTextColor={Colors[colorScheme].placeholderText}
+            />
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Helper to render the correct header based on type
+  const renderSetHeader = () => {
+    switch (item.type) {
+      case 'standard':
+        return (
+          <>
+            <ThemedText style={styles.setRowHeaderTextAction}></ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Set</ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Reps</ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Weight (kg)</ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Done</ThemedText>
+          </>
+        );
+      case 'bodyweight':
+        return (
+          <>
+            <ThemedText style={styles.setRowHeaderTextAction}></ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Set</ThemedText>
+            <ThemedText style={[styles.setRowHeaderText, styles.singleSetInputHeader]}>Reps</ThemedText> 
+            <ThemedText style={styles.setRowHeaderText}>Done</ThemedText>
+          </>
+        );
+      case 'timed':
+        return (
+          <>
+            <ThemedText style={styles.setRowHeaderTextAction}></ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Set</ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Duration</ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Distance</ThemedText>
+            <ThemedText style={styles.setRowHeaderText}>Done</ThemedText>
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View style={styles.exercisePanel}>
+      {/* Panel Header */} 
+      <View style={styles.panelHeader}>
+        {/* Minimize Button (Wraps Input and Chevron) */}
+        <TouchableOpacity style={styles.minimizeTouchable} onPress={() => setIsMinimized(!isMinimized)} activeOpacity={0.7}>
+          <TextInput
+            style={styles.exerciseNameInput}
+            placeholder="Exercise Name"
+            value={item.name}
+            onChangeText={(text) => onUpdateName(item.id, text)}
+            placeholderTextColor={Colors[colorScheme].placeholderText}
+          />
+          <IconSymbol 
+            name={isMinimized ? "chevron.down" : "chevron.up"} 
+            size={20} 
+            color={Colors[colorScheme].icon} 
+            style={styles.chevronIcon} // Add some margin
+          />
+        </TouchableOpacity>
+        {/* Delete Exercise Button */}
+        <TouchableOpacity onPress={() => onRemoveExercise(item.id)} style={styles.deleteExerciseButton}>
+          <IconSymbol name="trash" size={18} color={Colors[colorScheme].danger} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Panel Body (Conditionally Rendered) */}
+      {!isMinimized && (
+        <View style={styles.panelBodySetsContainer}>
+          {/* Header Row for Sets (Dynamically Rendered) */}
+          {item.sets.length > 0 && (
+            <View style={styles.setRowHeader}>
+              {renderSetHeader()} 
+            </View>
+          )}
+
+          {/* Map through sets and render each row */}
+          {item.sets.map((set, index) => (
+            <View key={set.id} style={[styles.setRow, set.completed ? styles.setRowCompleted : null]}>
+              {/* Remove Set Button */}
+              <TouchableOpacity 
+                style={styles.removeSetButton} 
+                onPress={() => onRemoveSet(item.id, set.id)}
+                disabled={set.completed}
+              >
+                <IconSymbol 
+                  name="minus.circle" 
+                  size={18} 
+                  color={set.completed ? Colors[colorScheme].placeholderText : Colors[colorScheme].danger} 
+                />
+              </TouchableOpacity>
+
+              {/* Set Number */}
+              <ThemedText style={styles.setNumber}>{index + 1}</ThemedText>
+              
+              {/* Render dynamic inputs based on type */}
+              {renderSetInputs(set)}
+              
+              {/* Completed Checkmark */}
+              <TouchableOpacity 
+                style={styles.setCheckmarkButton} 
+                onPress={() => onUpdateSet(item.id, set.id, 'completed', !set.completed)}
+              >
+                <IconSymbol 
+                  name={set.completed ? "checkmark.circle.fill" : "circle"} 
+                  size={22} 
+                  color={set.completed ? Colors[colorScheme].tint : Colors[colorScheme].icon}
+                />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          {/* Add Set/Entry Button (Consider changing text based on type) */}
+          <TouchableOpacity style={styles.addSetButton} onPress={() => onAddSet(item.id)}>
+            <IconSymbol name="plus" size={16} color={Colors[colorScheme].tint} />
+            <ThemedText style={styles.addSetButtonText}>
+              {item.type === 'timed' ? ' Add Entry' : ' Add Set'} 
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+};
+
+// Renamed and modified component for the top control panel
+const TopWorkoutControlPanel = ({ 
+  time, 
+  onStart,
+  onFinish, 
+  isWorkoutActive 
+}: {
+  time: number,
+  onStart: () => void,
+  onFinish: () => void,
+  isWorkoutActive: boolean
+}) => {
+  const colorScheme = useRNColorScheme() ?? 'light';
+  const styles = getStyles(colorScheme);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <TouchableOpacity 
+      style={[
+        styles.topPanelContainer,
+        isWorkoutActive ? styles.topPanelActive : styles.topPanelInactive 
+      ]}
+      onPress={isWorkoutActive ? onFinish : onStart} 
+      activeOpacity={0.7}
+    >
+      {isWorkoutActive ? (
+        <>
+          <ThemedText style={styles.timerText}>{formatTime(time)}</ThemedText>
+          <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].danger }]}>
+            Tap to Finish
+          </ThemedText>
+        </>
+      ) : (
+        <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].tint }]}>
+          Start Workout
+        </ThemedText>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+export default function StartWorkoutScreen() {
+  const colorScheme = useRNColorScheme() ?? 'light';
+  const styles = getStyles(colorScheme);
+  const insets = useSafeAreaInsets();
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [notes, setNotes] = useState('');
+  const [isWorkoutActive, setIsWorkoutActive] = useState(false);
+  const [isBrowsingModalVisible, setIsBrowsingModalVisible] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [time, setTime] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Memoize filtered data - now includes category filtering
+  const filteredWorkoutData = useMemo(() => {
+    let categories = commonWorkoutsData.categories;
+
+    // Filter by selected category first
+    if (selectedCategory) {
+      categories = categories.filter(category => category.name === selectedCategory);
+    }
+
+    // Then filter by search term
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      categories = categories
+        .map(category => ({
+          ...category,
+          exercises: category.exercises.filter(
+            exercise =>
+              exercise.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+              exercise.muscle.toLowerCase().includes(lowerCaseSearchTerm) ||
+              exercise.equipment?.toLowerCase().includes(lowerCaseSearchTerm)
+          ),
+        }))
+        .filter(category => category.exercises.length > 0);
+    }
+
+    // Format for SectionList
+    return categories.map(category => ({
+      title: category.name,
+      data: category.exercises,
+    }));
+
+  }, [searchTerm, commonWorkoutsData, selectedCategory]);
+
+  const workoutCategories = useMemo(() => [
+    'All',
+    ...commonWorkoutsData.categories.map(cat => cat.name)
+  ], [commonWorkoutsData]);
+
+  const addExercise = () => {
+    setIsBrowsingModalVisible(true);
+  };
+
+  // Updated to receive the full exercise object from modal
+  const addSelectedExercise = (exercise: CommonExercise) => {
+    let initialSets: Set[] = [];
+    // Start with one empty set for standard/bodyweight types
+    if (exercise.type === 'standard' || exercise.type === 'bodyweight') {
+      initialSets.push({ id: Date.now().toString(), completed: false, reps: '', weight: exercise.type === 'standard' ? '' : undefined });
+    }
+    // For timed, start with an empty set array (user adds entries)
+    // Or could start with one entry: { id: Date.now().toString(), completed: false, duration: '', distance: '' }
+
+    setExercises([...exercises, { 
+      id: Date.now().toString(), 
+      name: exercise.name, 
+      type: exercise.type, // Set the type
+      sets: initialSets
+    }]);
+    setIsBrowsingModalVisible(false);
+    setSearchTerm('');
+    setSelectedCategory(null); // Reset category filter too
+  };
+
+  const updateExerciseName = (id: string, name: string) => {
+    setExercises(exercises.map(ex => ex.id === id ? { ...ex, name: name } : ex));
+  };
+
+  // Updated addSet to handle different types
+  const addSet = (exerciseId: string) => {
+    setExercises(exercises.map(ex => {
+      if (ex.id === exerciseId) {
+        let newSet: Set;
+        if (ex.type === 'standard') {
+          newSet = { id: Date.now().toString(), completed: false, reps: '', weight: '' };
+        } else if (ex.type === 'bodyweight') {
+          newSet = { id: Date.now().toString(), completed: false, reps: '' }; // No weight for bodyweight
+        } else { // Timed
+          newSet = { id: Date.now().toString(), completed: false, duration: '', distance: '' };
+        }
+        return { ...ex, sets: [...ex.sets, newSet] };
+      }
+      return ex;
+    }));
+  };
+
+  // updateSet signature might need adjustment later if field names change significantly
+  const updateSet = (exerciseId: string, setId: string, field: keyof Set, value: string | boolean) => {
+    // ... existing logic should work if field names are valid keys of Set ...
+    setExercises(exercises.map(ex => {
+      if (ex.id === exerciseId) {
+        return {
+          ...ex,
+          sets: ex.sets.map(set => {
+            if (set.id === setId) {
+              return { ...set, [field]: value };
+            }
+            return set;
+          })
+        };
+      }
+      return ex;
+    }));
+  };
+
+  const removeSet = (exerciseId: string, setId: string) => {
+    setExercises(exercises.map(ex => {
+      if (ex.id === exerciseId) {
+        return {
+          ...ex,
+          sets: ex.sets.filter(set => set.id !== setId) // Filter out the set
+        };
+      }
+      return ex;
+    }));
+  };
+
+  const removeExercise = (exerciseId: string) => {
+    setExercises(exercises.filter(ex => ex.id !== exerciseId));
+  };
+
+  // Timer Logic Effect
+  useEffect(() => {
+    if (isWorkoutActive) {
+      intervalRef.current = setInterval(() => {
+        setTime((prevTime) => prevTime + 1);
+      }, 1000);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      setTime(0); // Reset timer when workout is not active
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isWorkoutActive]);
+
+  const startWorkout = () => {
+    setIsWorkoutActive(true);
+    setTime(0);
+  };
+
+  const finishWorkout = () => {
+    setIsWorkoutActive(false);
+    // Reset exercises with a default type
+    setExercises([{ id: Date.now().toString(), name: '', type: 'standard', sets: [] }]);
+    setNotes('');
+  };
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ThemedView style={[styles.mainContentContainer, { paddingTop: insets.top }]}>
+          {/* Render Top Control Panel */} 
+          <TopWorkoutControlPanel 
+            time={time} 
+            onStart={startWorkout} 
+            onFinish={finishWorkout} 
+            isWorkoutActive={isWorkoutActive} 
+          />
+
+          <ScrollView 
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <FlatList
+              data={exercises}
+              renderItem={({ item }) => (
+                <ExerciseItem 
+                  item={item} 
+                  onUpdateName={updateExerciseName} 
+                  onAddSet={addSet}
+                  onUpdateSet={updateSet}
+                  onRemoveSet={removeSet}
+                  onRemoveExercise={removeExercise}
+                />
+              )}
+              keyExtractor={(item, index) => item.id + index}
+              style={styles.exerciseList}
+              scrollEnabled={false}
+              ListFooterComponent={
+                <TouchableOpacity style={styles.addButton} onPress={addExercise}>
+                  <IconSymbol name="plus.circle.fill" size={20} color={Colors[colorScheme].tint} />
+                  <ThemedText style={styles.addButtonText}> Add Exercise</ThemedText>
+                </TouchableOpacity>
+              }
+            />
+
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Workout Notes (Optional)"
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              placeholderTextColor={Colors[colorScheme].placeholderText}
+            />
+          </ScrollView>
+        </ThemedView>
+      </TouchableWithoutFeedback>
+
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={isBrowsingModalVisible}
+        onRequestClose={() => {
+          setIsBrowsingModalVisible(false);
+          setSearchTerm('');
+        }}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ThemedView style={styles.modalContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search exercises..."
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholderTextColor={Colors[colorScheme].placeholderText}
+            />
+
+            <View style={styles.filterContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {workoutCategories.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.filterButton,
+                      selectedCategory === category || (category === 'All' && !selectedCategory) ? styles.filterButtonActive : null,
+                    ]}
+                    onPress={() => setSelectedCategory(category === 'All' ? null : category)}
+                  >
+                    <ThemedText style={[
+                      styles.filterButtonText,
+                      selectedCategory === category || (category === 'All' && !selectedCategory) ? styles.filterButtonTextActive : null,
+                    ]}>
+                      {category}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <SectionList
+              sections={filteredWorkoutData}
+              keyExtractor={(item, index) => item.name + index}
+              renderItem={({ item }) => (
+                // Pass the whole item (CommonExercise) to addSelectedExercise
+                <TouchableOpacity style={styles.modalItem} onPress={() => addSelectedExercise(item)}>
+                  <ThemedText style={styles.modalItemText}>{item.name}</ThemedText>
+                  <ThemedText style={styles.modalItemSubText}>{item.muscle} {item.equipment ? `(${item.equipment})` : ''}</ThemedText>
+                </TouchableOpacity>
+              )}
+              renderSectionHeader={({ section: { title } }) => (
+                <ThemedText style={styles.modalSectionHeader}>{title}</ThemedText>
+              )}
+              stickySectionHeadersEnabled={false}
+              style={styles.modalList}
+              indicatorStyle={colorScheme === 'dark' ? 'white' : 'black'}
+            />
+            <TouchableOpacity style={styles.closeButton} onPress={() => { setIsBrowsingModalVisible(false); setSearchTerm(''); setSelectedCategory(null); }}>
+              <ThemedText style={styles.closeButtonText}>Close</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </KeyboardAvoidingView>
+  );
+}
+
+const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors[colorScheme].background,
+  },
+  mainContentContainer: {
+    flex: 1,
+  },
+  scrollContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  innerContainer: {
+  },
+  title: {
+    marginBottom: 25,
+    textAlign: 'center',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  exerciseList: {
+    marginBottom: 20,
+  },
+  exercisePanel: {
+    backgroundColor: Colors[colorScheme].cardBackground,
+    borderRadius: 10,
+    marginBottom: 15,
+    padding: 15,
+    shadowColor: '#000', // Basic shadow for panel effect
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  exercisePanelCompleted: {
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    opacity: 0.7, // Make it slightly faded
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingBottom: 5,
+  },
+  minimizeTouchable: { // Touchable area for minimizing
+    flexDirection: 'row',
+    flex: 1, // Take most space
+    alignItems: 'center',
+    marginRight: 10, // Space before delete button
+  },
+  exerciseNameInput: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors[colorScheme].text,
+    // Removed marginRight here, handled by minimizeTouchable
+    paddingVertical: 5,
+  },
+  chevronIcon: { // Style for chevron
+    marginLeft: 5,
+  },
+  deleteExerciseButton: { // Style for delete button
+    padding: 8, 
+  },
+  checkmarkButton: {
+    padding: 5, // Easier to tap
+  },
+  panelBodySetsContainer: {
+    gap: 5,
+    paddingTop: 5,
+  },
+  setRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    paddingHorizontal: 5,
+  },
+  setRowHeaderText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 11,
+    color: Colors[colorScheme].placeholderText,
+    fontWeight: '500',
+    paddingHorizontal: 2, // Add padding for tighter columns
+  },
+  setRowHeaderTextAction: {
+    flexBasis: 30,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between', 
+    gap: 5,
+    marginBottom: 5,
+    paddingVertical: 3,
+    paddingHorizontal: 5,
+    borderRadius: 6,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  setRowCompleted: {
+    backgroundColor: Colors[colorScheme].background,
+    opacity: 0.6,
+  },
+  removeSetButton: {
+    padding: 5,
+    minWidth: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors[colorScheme].text,
+    minWidth: 25,
+    textAlign: 'center',
+  },
+  setInput: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    fontSize: 14,
+  },
+  setCheckmarkButton: {
+    padding: 5,
+    minWidth: 30,
+    alignItems: 'center',
+  },
+  addSetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    marginTop: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].tint,
+    borderStyle: 'dashed',
+  },
+  addSetButtonText: {
+    color: Colors[colorScheme].tint,
+    marginLeft: 5,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  exerciseInput: {
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].inputBorder,
+    borderRadius: 8,
+    fontSize: 15, 
+    backgroundColor: Colors[colorScheme].inputBackground,
+    color: Colors[colorScheme].inputText,
+  },
+  numericInput: {
+    flex: 1,
+    textAlign: 'center',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].tint,
+    marginBottom: 25,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  addButtonText: {
+    color: Colors[colorScheme].tint,
+    marginLeft: 8,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].inputBorder,
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    marginBottom: 25,
+    textAlignVertical: 'top',
+    backgroundColor: Colors[colorScheme].inputBackground,
+    color: Colors[colorScheme].inputText,
+    fontSize: 15,
+  },
+  modalContainer: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 60 : 30,
+    backgroundColor: Colors[colorScheme].background,
+  },
+  searchInput: {
+    height: 45,
+    borderColor: Colors[colorScheme].inputBorder,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginHorizontal: 15,
+    backgroundColor: Colors[colorScheme].inputBackground,
+    color: Colors[colorScheme].inputText,
+    fontSize: 16,
+  },
+  filterContainer: {
+    paddingVertical: 15,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1, 
+    borderBottomColor: Colors[colorScheme].borderColor,
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginRight: 10,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  filterButtonActive: {
+    backgroundColor: Colors[colorScheme].tint,
+  },
+  filterButtonText: {
+    color: Colors[colorScheme].text,
+    fontWeight: '500',
+  },
+  filterButtonTextActive: {
+    color: colorScheme === 'dark' ? Colors.dark.buttonTextPrimary : Colors.light.buttonTextPrimary,
+  },
+  modalList: {
+    flex: 1,
+    paddingHorizontal: 15,
+  },
+  modalSectionHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 8,
+    color: Colors[colorScheme].text,
+    backgroundColor: Colors[colorScheme].background,
+  },
+  modalItem: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: Colors[colorScheme].text,
+  },
+  modalItemSubText: {
+    fontSize: 13,
+    color: Colors[colorScheme].placeholderText,
+    marginTop: 2,
+  },
+  closeButton: {
+    backgroundColor: Colors[colorScheme].danger,
+    marginHorizontal: 15,
+    marginBottom: Platform.OS === 'ios' ? 30 : 20,
+    marginTop: 10,
+    paddingVertical: 16, 
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Style for the top control panel
+  topPanelContainer: { 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
+    marginBottom: 15, // Space below panel
+  },
+  topPanelInactive: {
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    justifyContent: 'center',
+  },
+  topPanelActive: {
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  timerText: { 
+    fontSize: 20,
+    fontWeight: '600',
+    color: Colors[colorScheme].danger, // Red timer text on active
+  },
+  panelActionText: { 
+    fontSize: 16, 
+    fontWeight: 'bold',
+    // Color will be applied inline in the component
+  },
+  singleSetInput: { // Style for bodyweight reps input
+    flex: 2.2, // Take up space of Reps and Weight
+  },
+  singleSetInputHeader: { // Style for bodyweight reps header
+    flex: 2.2, // Match input flex
+  },
+}); 
