@@ -378,6 +378,68 @@ const TopWorkoutControlPanel = ({
   );
 };
 
+const DurationFilterModal = ({ visible, onClose, onApplyFilters }: { visible: boolean, onClose: () => void, onApplyFilters: (filters: any) => void }) => {
+  const colorScheme = useRNColorScheme() ?? 'light';
+  const styles = getStyles(colorScheme);
+  const [selectedDuration, setSelectedDuration] = useState<string | null>(null);
+
+  const durations = [
+    { label: 'Under 15 min', value: '15' },
+    { label: '15-30 min', value: '30' },
+    { label: '30-45 min', value: '45' },
+    { label: '45-60 min', value: '60' },
+    { label: 'Over 60 min', value: '60+' },
+  ];
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <ThemedView style={styles.modalView}>
+          <ThemedText type="subtitle" style={styles.modalText}>Filter by Duration</ThemedText>
+          
+          {durations.map((duration) => (
+            <TouchableOpacity
+              key={duration.value}
+              style={[
+                styles.durationButton,
+                selectedDuration === duration.value && styles.durationButtonActive
+              ]}
+              onPress={() => setSelectedDuration(duration.value)}
+            >
+              <ThemedText style={[
+                styles.durationButtonText,
+                selectedDuration === duration.value && styles.durationButtonTextActive
+              ]}>
+                {duration.label}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+          
+          <View style={styles.modalButtonContainer}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.applyButton]} 
+              onPress={() => {
+                onApplyFilters({ duration: selectedDuration });
+                onClose();
+              }}
+            >
+              <ThemedText style={styles.applyButtonText}>Apply</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.modalButton, styles.closeButton]} onPress={onClose}>
+              <ThemedText style={styles.closeButtonText}>Close</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </ThemedView>
+      </View>
+    </Modal>
+  );
+};
+
 export default function StartWorkoutScreen() {
   const colorScheme = useRNColorScheme() ?? 'light';
   const styles = getStyles(colorScheme);
@@ -391,6 +453,8 @@ export default function StartWorkoutScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isDurationFilterVisible, setDurationFilterVisible] = useState(false);
+  const [durationFilter, setDurationFilter] = useState<string | null>(null);
   const { user } = useAuth();
 
   // Memoize filtered data - now includes category filtering
@@ -612,6 +676,31 @@ export default function StartWorkoutScreen() {
     setTime(0);
   };
 
+  const applyDurationFilter = (filters: any) => {
+    setDurationFilter(filters.duration);
+  };
+
+  const filterWorkouts = (workouts: any[]) => {
+    let filtered = workouts;
+    
+    if (selectedCategory && selectedCategory !== 'All') {
+      filtered = filtered.filter(workout => workout.category === selectedCategory);
+    }
+    
+    if (durationFilter) {
+      filtered = filtered.filter(workout => {
+        const duration = parseInt(workout.duration);
+        if (durationFilter === '60+') {
+          return duration > 60;
+        }
+        const maxDuration = parseInt(durationFilter);
+        return duration <= maxDuration;
+      });
+    }
+    
+    return filtered;
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -636,7 +725,7 @@ export default function StartWorkoutScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <FlatList
-              data={exercises}
+              data={filterWorkouts(exercises)}
               renderItem={({ item }) => (
                 <ExerciseItem 
                   item={item} 
@@ -734,6 +823,12 @@ export default function StartWorkoutScreen() {
           </ThemedView>
         </TouchableWithoutFeedback>
       </Modal>
+
+      <DurationFilterModal
+        visible={isDurationFilterVisible}
+        onClose={() => setDurationFilterVisible(false)}
+        onApplyFilters={applyDurationFilter}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1051,9 +1146,9 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   confirmationModal: {
     backgroundColor: Colors[colorScheme].cardBackground,
@@ -1098,5 +1193,65 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   finishButtonText: {
     color: 'white',
     fontWeight: '600',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    borderRadius: 15,
+    padding: 25,
+    paddingTop: 30,
+    alignItems: 'stretch',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '85%',
+  },
+  modalText: {
+    marginBottom: 25,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  durationButton: {
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].borderColor,
+  },
+  durationButtonActive: {
+    backgroundColor: Colors[colorScheme].tint,
+    borderColor: Colors[colorScheme].tint,
+  },
+  durationButtonText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  durationButtonTextActive: {
+    color: colorScheme === 'dark' ? Colors.dark.buttonTextPrimary : Colors.light.buttonTextPrimary,
+    fontWeight: 'bold',
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 30,
+  },
+  modalButton: {
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  applyButton: {
+    backgroundColor: Colors[colorScheme].tint,
+  },
+  applyButtonText: {
+    color: colorScheme === 'dark' ? Colors.dark.buttonTextPrimary : Colors.light.buttonTextPrimary,
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

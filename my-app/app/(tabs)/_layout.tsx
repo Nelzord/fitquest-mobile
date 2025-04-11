@@ -8,11 +8,9 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-interface TabBarIconProps {
+type TabBarIconProps = {
   color: string;
-  size: number;
-  focused: boolean;
-}
+};
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -36,6 +34,7 @@ export default function TabLayout() {
         name="index"
         options={{
           href: null,
+          tabBarStyle: { display: 'none' },
         }}
       />
       <Tabs.Screen
@@ -46,13 +45,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="workoutHistory"
-        options={{
-          title: 'History',
-          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="clock.arrow.circlepath" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
@@ -60,10 +52,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="workoutDetail"
+        name="history"
         options={{
-          title: 'Workout Detail',
-          href: null,
+          title: 'History',
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="clock" color={color} />,
         }}
       />
     </Tabs>
