@@ -8,6 +8,7 @@ import { Colors } from '@/constants/Colors'; // Import Colors
 import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Import for safe area
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { WorkoutCompletionModal } from '@/components/WorkoutCompletionModal';
 
 interface CommonExercise {
   name: string;
@@ -456,6 +457,18 @@ export default function StartWorkoutScreen() {
   const [isDurationFilterVisible, setDurationFilterVisible] = useState(false);
   const [durationFilter, setDurationFilter] = useState<string | null>(null);
   const { user } = useAuth();
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionStats, setCompletionStats] = useState<{
+    totalSets: number;
+    totalReps: number;
+    totalVolume: number;
+    xpGain: number;
+    goldGain: number;
+    currentLevel: number;
+    newLevel: number;
+    currentXP: number;
+    requiredXP: number;
+  } | null>(null);
 
   // Memoize filtered data - now includes category filtering
   const filteredWorkoutData = useMemo(() => {
@@ -602,6 +615,59 @@ export default function StartWorkoutScreen() {
     setTime(0);
   };
 
+  const calculateRequiredXP = (level: number) => {
+    return Math.floor(100 * Math.pow(level, 1.5));
+  };
+
+  const updateUserStats = async (totalSets: number) => {
+    if (!user) return;
+
+    // Get current user stats
+    const { data: currentStats, error: statsError } = await supabase
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (statsError) {
+      console.error('Error fetching user stats:', statsError);
+      return;
+    }
+
+    // Calculate XP and gold gains
+    const xpGain = totalSets * 10; // 10 XP per set
+    const goldGain = totalSets * 2; // 2 gold per set
+
+    // Calculate new XP and check for level up
+    const newXP = (currentStats?.xp || 0) + xpGain;
+    const currentLevel = currentStats?.level || 1;
+    const requiredXP = calculateRequiredXP(currentLevel);
+    const newLevel = newXP >= requiredXP ? currentLevel + 1 : currentLevel;
+
+    // Update user stats
+    const { error: updateError } = await supabase
+      .from('user_stats')
+      .upsert({
+        user_id: user.id,
+        xp: newXP,
+        gold: (currentStats?.gold || 0) + goldGain,
+        level: newLevel,
+        last_updated: new Date().toISOString()
+      });
+
+    if (updateError) {
+      console.error('Error updating user stats:', updateError);
+    }
+
+    return {
+      xpGain,
+      goldGain,
+      newLevel,
+      leveledUp: newLevel > currentLevel,
+      newXP
+    };
+  };
+
   const finishWorkout = async () => {
     if (!user) {
       console.error('No user found');
@@ -612,6 +678,28 @@ export default function StartWorkoutScreen() {
 
     setIsSaving(true);
     try {
+      // Calculate total sets, reps, and volume for XP/gold calculation
+      const totalSets = exercises.reduce((sum, exercise) => 
+        sum + exercise.sets.filter(set => set.completed).length, 0
+      );
+      const totalReps = exercises.reduce((sum, exercise) => 
+        sum + exercise.sets.filter(set => set.completed).reduce((s, set) => 
+          s + (set.reps ? parseInt(set.reps) : 0), 0
+        ), 0
+      );
+      const totalVolume = exercises.reduce((sum, exercise) => 
+        sum + exercise.sets.filter(set => set.completed).reduce((s, set) => {
+          if (exercise.type === 'standard' && set.weight && set.reps) {
+            return s + (parseInt(set.reps) * parseFloat(set.weight));
+          } else if (exercise.type === 'bodyweight' && set.reps) {
+            return s + parseInt(set.reps);
+          } else if (exercise.type === 'timed' && set.duration) {
+            return s + parseInt(set.duration);
+          }
+          return s;
+        }, 0), 0
+      );
+
       // 1. Create the workout record
       const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
@@ -659,11 +747,31 @@ export default function StartWorkoutScreen() {
         }
       }
 
+      // 4. Update user stats with XP and gold
+      const statsUpdate = await updateUserStats(totalSets);
+
+      // Set completion stats for the modal
+      setCompletionStats({
+        totalSets,
+        totalReps,
+        totalVolume: Math.round(totalVolume),
+        xpGain: statsUpdate?.xpGain || 0,
+        goldGain: statsUpdate?.goldGain || 0,
+        currentLevel: statsUpdate?.newLevel || 1,
+        newLevel: statsUpdate?.newLevel || 1,
+        currentXP: statsUpdate?.newXP || 0,
+        requiredXP: calculateRequiredXP(statsUpdate?.newLevel || 1),
+      });
+
+      // Show completion modal
+      setShowCompletionModal(true);
+
       // Reset the workout state
       setIsWorkoutActive(false);
-      setExercises([{ id: Date.now().toString(), name: '', type: 'standard', sets: [] }]);
+      setExercises([]);
       setNotes('');
       setTime(0);
+
     } catch (error) {
       console.error('Error saving workout:', error);
       // You might want to show an error message to the user here
@@ -828,6 +936,22 @@ export default function StartWorkoutScreen() {
         visible={isDurationFilterVisible}
         onClose={() => setDurationFilterVisible(false)}
         onApplyFilters={applyDurationFilter}
+      />
+
+      <WorkoutCompletionModal
+        visible={showCompletionModal}
+        onClose={() => setShowCompletionModal(false)}
+        stats={completionStats || {
+          totalSets: 0,
+          totalReps: 0,
+          totalVolume: 0,
+          xpGain: 0,
+          goldGain: 0,
+          currentLevel: 1,
+          newLevel: 1,
+          currentXP: 0,
+          requiredXP: 100,
+        }}
       />
     </KeyboardAvoidingView>
   );

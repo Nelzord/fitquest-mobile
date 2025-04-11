@@ -101,6 +101,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('id', data.user.id);
 
         if (updateError) throw updateError;
+
+        // Create initial user stats record
+        const { error: statsError } = await supabase
+          .from('user_stats')
+          .insert({
+            user_id: data.user.id,
+            gold: 0,
+            xp: 0,
+            level: 1,
+            chest_xp: 0,
+            back_xp: 0,
+            legs_xp: 0,
+            shoulders_xp: 0,
+            arms_xp: 0,
+            core_xp: 0,
+            cardio_xp: 0,
+            last_updated: new Date().toISOString()
+          });
+
+        if (statsError) throw statsError;
       }
 
       setUser(data.user);

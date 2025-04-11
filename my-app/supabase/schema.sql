@@ -8,6 +8,7 @@
 DROP TABLE IF EXISTS sets CASCADE;
 DROP TABLE IF EXISTS exercises CASCADE;
 DROP TABLE IF EXISTS workouts CASCADE;
+DROP TABLE IF EXISTS user_stats CASCADE;
 
 -- Create the workouts table with statistics columns
 CREATE TABLE IF NOT EXISTS workouts (
@@ -45,6 +46,23 @@ CREATE TABLE IF NOT EXISTS sets (
     distance DECIMAL,
     completed BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Create the user stats table
+CREATE TABLE user_stats (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id),
+    gold INTEGER DEFAULT 0,
+    xp INTEGER DEFAULT 0,
+    level INTEGER DEFAULT 1,
+    -- Muscle group XP tracking
+    chest_xp INTEGER DEFAULT 0,
+    back_xp INTEGER DEFAULT 0,
+    legs_xp INTEGER DEFAULT 0,
+    shoulders_xp INTEGER DEFAULT 0,
+    arms_xp INTEGER DEFAULT 0,
+    core_xp INTEGER DEFAULT 0,
+    cardio_xp INTEGER DEFAULT 0,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Enable Row Level Security
@@ -155,10 +173,32 @@ CREATE POLICY IF NOT EXISTS "Users can delete their own sets"
         AND workouts.user_id = auth.uid()
     ));
 
+-- Enable Row Level Security for user_stats table
+ALTER TABLE user_stats ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own stats" ON user_stats;
+DROP POLICY IF EXISTS "Users can insert their own stats" ON user_stats;
+DROP POLICY IF EXISTS "Users can update their own stats" ON user_stats;
+
+-- Create policies for user_stats
+CREATE POLICY IF NOT EXISTS "Users can view their own stats"
+    ON user_stats FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY IF NOT EXISTS "Users can insert their own stats"
+    ON user_stats FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY IF NOT EXISTS "Users can update their own stats"
+    ON user_stats FOR UPDATE
+    USING (auth.uid() = user_id);
+
 -- Grant necessary permissions
 GRANT ALL ON workouts TO authenticated;
 GRANT ALL ON exercises TO authenticated;
 GRANT ALL ON sets TO authenticated;
+GRANT ALL ON user_stats TO authenticated;
 
 -- Create function to update exercise statistics
 CREATE OR REPLACE FUNCTION update_exercise_stats()
