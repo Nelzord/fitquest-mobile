@@ -1,12 +1,29 @@
-import React from 'react';
-import { StyleSheet, View, Image, TouchableOpacity, ScrollView, useColorScheme as useRNColorScheme } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol'; // Assuming IconSymbol exists
-import { useRouter } from 'expo-router'; // Import useRouter
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
-import { Colors } from '@/constants/Colors'; // Import Colors
-import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Import for safe area
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { Colors } from '@/constants/Colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '@/lib/supabase';
+import { useColorScheme } from '@/hooks/useColorScheme';
+
+interface UserStats {
+  user_id: string;
+  gold: number;
+  xp: number;
+  level: number;
+  chest_xp: number;
+  back_xp: number;
+  legs_xp: number;
+  shoulders_xp: number;
+  arms_xp: number;
+  core_xp: number;
+  cardio_xp: number;
+  last_updated: string;
+}
 
 // Placeholder data
 const userData = {
@@ -20,241 +37,280 @@ const userData = {
   badges: ['Badge1', 'Badge2', 'Badge3'],
 };
 
-// Apply Theming to ProgressBar
-const ProgressBar = ({ current, max }: { current: number, max: number }) => {
-  const colorScheme = useRNColorScheme() ?? 'light';
-  const styles = getStyles(colorScheme);
-  const progress = max > 0 ? (current / max) * 100 : 0; // Prevent division by zero
-
-  return (
-    <View style={styles.progressBarContainer}>
-      <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
-    </View>
-  );
-};
-
-// Apply Theming to Badge
-const Badge = ({ name }: { name: string }) => {
-  const colorScheme = useRNColorScheme() ?? 'light';
-  const styles = getStyles(colorScheme);
-
-  return (
-    <View style={styles.badge}>
-      {/* Consider using a themed icon color or a specific badge color */}
-      <IconSymbol name="star.fill" size={30} color={Colors[colorScheme].tint} /> 
-      <ThemedText style={styles.badgeText}>{name}</ThemedText>
-    </View>
-  );
-};
-
 export default function ProfileScreen() {
-  const colorScheme = useRNColorScheme() ?? 'light';
-  const styles = getStyles(colorScheme);
-  const insets = useSafeAreaInsets(); // Get safe area insets
+  const colorScheme = useColorScheme() ?? 'light';
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { logout, isGuest } = useAuth();
+  const { logout, isGuest, user } = useAuth();
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Add handleSignOut function
+  useEffect(() => {
+    if (user) {
+      fetchUserStats();
+    }
+  }, [user]);
+
+  const fetchUserStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (error) throw error;
+      setUserStats(data);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateRequiredXP = (level: number) => {
+    return Math.floor(100 * Math.pow(level, 1.5));
+  };
+
+  const getProgressPercentage = (currentXP: number, level: number) => {
+    const requiredXP = calculateRequiredXP(level);
+    return (currentXP / requiredXP) * 100;
+  };
+
   const handleSignOut = async () => {
     try {
       await logout();
-      router.replace('/(auth)/login'); // Navigate to login after logout
+      router.replace('/(auth)/login');
     } catch (error) {
       console.error('Sign out error:', error);
     }
   };
 
-  // Add data fetching for user profile
-  // Add navigation logic for edit profile
+  if (loading) {
+    return (
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors[colorScheme].tint} />
+      </ThemedView>
+    );
+  }
 
   return (
-    // Use ThemedView for background and add safe area padding
-    <ThemedView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContainer} // Add padding inside scroll
+    <ScrollView 
+      style={[styles.container, { paddingTop: insets.top }]}
+      contentContainerStyle={styles.contentContainer}
+    >
+      <ThemedView style={styles.header}>
+        <View style={styles.profileInfo}>
+          <ThemedText style={styles.name}>{user?.email?.split('@')[0] || 'User'}</ThemedText>
+          <ThemedText style={styles.email}>{user?.email}</ThemedText>
+        </View>
+      </ThemedView>
+
+      <ThemedView style={styles.statsCard}>
+        <View style={styles.levelContainer}>
+          <ThemedText style={styles.levelText}>Level {userStats?.level || 1}</ThemedText>
+          <View style={styles.xpContainer}>
+            <IconSymbol name="star.fill" size={16} color={Colors[colorScheme].tint} />
+            <ThemedText style={styles.xpText}>
+              {userStats?.xp || 0} / {calculateRequiredXP(userStats?.level || 1)} XP
+            </ThemedText>
+          </View>
+        </View>
+        <View style={styles.progressBarContainer}>
+          <View 
+            style={[
+              styles.progressBar,
+              { 
+                width: `${getProgressPercentage(userStats?.xp || 0, userStats?.level || 1)}%`,
+                backgroundColor: Colors[colorScheme].tint
+              }
+            ]} 
+          />
+        </View>
+      </ThemedView>
+
+      <ThemedView style={styles.statsCard}>
+        <View style={styles.currencyContainer}>
+          <View style={styles.currencyItem}>
+            <IconSymbol name="dollarsign.circle.fill" size={24} color={Colors[colorScheme].tint} />
+            <ThemedText style={styles.currencyText}>{userStats?.gold || 0}</ThemedText>
+          </View>
+        </View>
+      </ThemedView>
+
+      <ThemedView style={styles.statsCard}>
+        <ThemedText style={styles.sectionTitle}>Muscle Group Progress</ThemedText>
+        <View style={styles.muscleGroupContainer}>
+          <MuscleGroupItem 
+            name="Chest" 
+            xp={userStats?.chest_xp || 0} 
+            icon="figure.arms.open" 
+          />
+          <MuscleGroupItem 
+            name="Back" 
+            xp={userStats?.back_xp || 0} 
+            icon="figure.arms.open" 
+          />
+          <MuscleGroupItem 
+            name="Legs" 
+            xp={userStats?.legs_xp || 0} 
+            icon="figure.walk" 
+          />
+          <MuscleGroupItem 
+            name="Shoulders" 
+            xp={userStats?.shoulders_xp || 0} 
+            icon="figure.arms.open" 
+          />
+          <MuscleGroupItem 
+            name="Arms" 
+            xp={userStats?.arms_xp || 0} 
+            icon="figure.arms.open" 
+          />
+          <MuscleGroupItem 
+            name="Core" 
+            xp={userStats?.core_xp || 0} 
+            icon="figure.core.training" 
+          />
+          <MuscleGroupItem 
+            name="Cardio" 
+            xp={userStats?.cardio_xp || 0} 
+            icon="figure.run" 
+          />
+        </View>
+      </ThemedView>
+
+      <TouchableOpacity 
+        style={[styles.signOutButton, { backgroundColor: Colors[colorScheme].danger }]} 
+        onPress={handleSignOut}
       >
-        {/* Profile Header Section */}
-        <ThemedView style={styles.profileHeader}>
-          <Image source={{ uri: userData.avatarUrl }} style={styles.avatar} />
-          <ThemedText type="title" style={styles.name}>{userData.name}</ThemedText>
-          <ThemedText style={styles.level}>Level {userData.level}</ThemedText>
-          <ProgressBar current={userData.currentXp} max={userData.maxXp} />
-          <ThemedText style={styles.xpText}>{userData.currentXp} / {userData.maxXp} XP</ThemedText>
-          <TouchableOpacity style={styles.editButton} onPress={() => console.log('Edit Profile Clicked')}>
-            <ThemedText style={styles.editButtonText}>Edit Profile</ThemedText>
-          </TouchableOpacity>
-        </ThemedView>
-
-        {/* Stats Section */}
-        <ThemedView style={styles.cardContainer}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>Stats</ThemedText>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <ThemedText style={styles.statValue}>{userData.totalWorkouts}</ThemedText>
-              <ThemedText style={styles.statLabel}>Workouts</ThemedText>
-            </View>
-            <View style={styles.statItem}>
-              <ThemedText style={styles.statValue}>{userData.currentStreak}</ThemedText>
-              <ThemedText style={styles.statLabel}>Streak</ThemedText>
-            </View>
-          </View>
-        </ThemedView>
-
-        {/* Badges Section */}
-        <ThemedView style={styles.cardContainer}>
-          <ThemedText type="subtitle" style={styles.sectionTitle}>Badges</ThemedText>
-          <View style={styles.badgesGrid}>
-            {userData.badges.map((badge, index) => (
-              <Badge key={index} name={badge} />
-            ))}
-          </View>
-        </ThemedView>
-
-        {/* Sign Out Button */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <ThemedText style={styles.signOutText}>
-            Sign Out {isGuest ? '(Guest)' : ''}
-          </ThemedText>
-        </TouchableOpacity>
-      </ScrollView>
-    </ThemedView>
+        <ThemedText style={styles.signOutText}>
+          Sign Out {isGuest ? '(Guest)' : ''}
+        </ThemedText>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
-// Function to generate styles based on color scheme
-const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
+function MuscleGroupItem({ name, xp, icon }: { name: string; xp: number; icon: string }) {
+  const colorScheme = useColorScheme() ?? 'light';
+  return (
+    <View style={styles.muscleGroupItem}>
+      <View style={styles.muscleGroupHeader}>
+        <IconSymbol name={icon as any} size={20} color={Colors[colorScheme].tint} />
+        <ThemedText style={styles.muscleGroupName}>{name}</ThemedText>
+      </View>
+      <View style={styles.xpContainer}>
+        <IconSymbol name="star.fill" size={16} color={Colors[colorScheme].tint} />
+        <ThemedText style={styles.xpText}>{xp}</ThemedText>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // Background color applied by ThemedView
   },
-  scrollContainer: {
-     paddingHorizontal: 15, // Add horizontal padding to content
-     paddingBottom: 20, // Extra padding at the bottom of scroll content
+  contentContainer: {
+    padding: 16,
   },
-  profileHeader: {
+  header: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  profileInfo: {
     alignItems: 'center',
-    paddingVertical: 30, // More vertical padding
-    marginBottom: 20, // Space below header
-    // Removed border - use cards for separation
-  },
-  avatar: {
-    width: 110, // Slightly larger avatar
-    height: 110,
-    borderRadius: 55,
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: Colors[colorScheme].tint, // Accent border
   },
   name: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  email: {
+    fontSize: 16,
+    opacity: 0.7,
+  },
+  statsCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  levelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
-    fontSize: 22, // Larger name
+  },
+  levelText: {
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  level: {
+  xpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  xpText: {
+    marginLeft: 4,
     fontSize: 16,
-    color: Colors[colorScheme].placeholderText, // Muted color
-    marginBottom: 15,
   },
   progressBarContainer: {
     height: 8,
-    width: '70%',
-    backgroundColor: Colors[colorScheme].secondaryBackground, // Themed background
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 8,
   },
-  progressBarFill: {
+  progressBar: {
     height: '100%',
-    backgroundColor: Colors[colorScheme].tint, // Use theme tint color
     borderRadius: 4,
   },
-  xpText: {
-    fontSize: 13,
-    color: Colors[colorScheme].placeholderText, // Muted color
-    marginBottom: 20,
+  currencyContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
-  editButton: {
-    backgroundColor: Colors[colorScheme].buttonSecondary, // Use secondary button style
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20, // More rounded
+  currencyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
   },
-  editButtonText: {
-    color: Colors[colorScheme].buttonTextSecondary, // Use themed text
+  currencyText: {
+    fontSize: 24,
     fontWeight: 'bold',
-    fontSize: 14,
-  },
-  cardContainer: { // New style for card sections
-    backgroundColor: Colors[colorScheme].cardBackground,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000', // Optional shadow for depth
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: colorScheme === 'dark' ? 0.4 : 0.1,
-    shadowRadius: 3,
-    elevation: 3, // Android shadow
-  },
-  statsContainer: { // Remove old container style
-    // padding: 20,
-    // borderBottomWidth: 1,
-    // borderBottomColor: Colors[colorScheme].borderColor,
-  },
-  badgesContainer: { // Remove old container style
-    // padding: 20,
+    marginLeft: 8,
   },
   sectionTitle: {
-    marginBottom: 20,
-    textAlign: 'center',
     fontSize: 18,
-    fontWeight: '600',
-    color: Colors[colorScheme].text, // Use themed text
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 26, // Larger stat value
     fontWeight: 'bold',
-    marginBottom: 5,
-    color: Colors[colorScheme].text,
+    marginBottom: 16,
   },
-  statLabel: {
-    fontSize: 14,
-    color: Colors[colorScheme].placeholderText, // Muted color
+  muscleGroupContainer: {
+    gap: 12,
   },
-  badgesGrid: {
+  muscleGroupItem: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 20, // Increased gap
-  },
-  badge: {
+    justifyContent: 'space-between',
     alignItems: 'center',
-    width: 70, // Adjusted size
+    paddingVertical: 8,
   },
-  badgeText: {
-    marginTop: 8,
-    fontSize: 12,
-    textAlign: 'center',
-    color: Colors[colorScheme].placeholderText, // Muted color
+  muscleGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  muscleGroupName: {
+    fontSize: 16,
+    marginLeft: 8,
   },
   signOutButton: {
-    backgroundColor: Colors[colorScheme].danger, // Use themed danger color
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginHorizontal: 15, // Match horizontal padding of scroll view
-    marginTop: 10, // Space above sign out
-    marginBottom: 10, // Space below sign out
+    marginHorizontal: 15,
+    marginTop: 10,
+    marginBottom: 10,
   },
   signOutText: {
-    color: 'white', // Keep sign out text white for contrast
+    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },

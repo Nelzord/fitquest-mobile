@@ -638,13 +638,62 @@ export default function StartWorkoutScreen() {
     const xpGain = totalSets * 10; // 10 XP per set
     const goldGain = totalSets * 2; // 2 gold per set
 
+    // Calculate muscle group XP gains
+    const muscleGroupXPGains = exercises.reduce((acc, exercise) => {
+      const completedSets = exercise.sets.filter(set => set.completed).length;
+      if (completedSets === 0) return acc;
+
+      // Find the exercise in commonWorkoutsData to get its muscle group
+      const commonExercise = commonWorkoutsData.categories
+        .flatMap(cat => cat.exercises)
+        .find(ex => ex.name === exercise.name);
+
+      if (commonExercise) {
+        const muscleGroups = commonExercise.muscle.toLowerCase();
+        const xpPerSet = 10; // Same as base XP per set
+
+        // Distribute XP to relevant muscle groups
+        if (muscleGroups.includes('chest') || muscleGroups.includes('pectoralis')) {
+          acc.chest_xp += completedSets * xpPerSet;
+        }
+        if (muscleGroups.includes('back') || muscleGroups.includes('latissimus') || muscleGroups.includes('rhomboids')) {
+          acc.back_xp += completedSets * xpPerSet;
+        }
+        if (muscleGroups.includes('legs') || muscleGroups.includes('quadriceps') || muscleGroups.includes('glutes') || muscleGroups.includes('hamstrings')) {
+          acc.legs_xp += completedSets * xpPerSet;
+        }
+        if (muscleGroups.includes('shoulders') || muscleGroups.includes('deltoids')) {
+          acc.shoulders_xp += completedSets * xpPerSet;
+        }
+        if (muscleGroups.includes('arms') || muscleGroups.includes('biceps') || muscleGroups.includes('triceps')) {
+          acc.arms_xp += completedSets * xpPerSet;
+        }
+        if (muscleGroups.includes('core') || muscleGroups.includes('abdominal')) {
+          acc.core_xp += completedSets * xpPerSet;
+        }
+        if (muscleGroups.includes('cardio') || muscleGroups.includes('cardiovascular') || muscleGroups.includes('full body')) {
+          acc.cardio_xp += completedSets * xpPerSet;
+        }
+      }
+
+      return acc;
+    }, {
+      chest_xp: 0,
+      back_xp: 0,
+      legs_xp: 0,
+      shoulders_xp: 0,
+      arms_xp: 0,
+      core_xp: 0,
+      cardio_xp: 0
+    });
+
     // Calculate new XP and check for level up
     const newXP = (currentStats?.xp || 0) + xpGain;
     const currentLevel = currentStats?.level || 1;
     const requiredXP = calculateRequiredXP(currentLevel);
     const newLevel = newXP >= requiredXP ? currentLevel + 1 : currentLevel;
 
-    // Update user stats
+    // Update user stats with muscle group XP
     const { error: updateError } = await supabase
       .from('user_stats')
       .upsert({
@@ -652,6 +701,13 @@ export default function StartWorkoutScreen() {
         xp: newXP,
         gold: (currentStats?.gold || 0) + goldGain,
         level: newLevel,
+        chest_xp: (currentStats?.chest_xp || 0) + muscleGroupXPGains.chest_xp,
+        back_xp: (currentStats?.back_xp || 0) + muscleGroupXPGains.back_xp,
+        legs_xp: (currentStats?.legs_xp || 0) + muscleGroupXPGains.legs_xp,
+        shoulders_xp: (currentStats?.shoulders_xp || 0) + muscleGroupXPGains.shoulders_xp,
+        arms_xp: (currentStats?.arms_xp || 0) + muscleGroupXPGains.arms_xp,
+        core_xp: (currentStats?.core_xp || 0) + muscleGroupXPGains.core_xp,
+        cardio_xp: (currentStats?.cardio_xp || 0) + muscleGroupXPGains.cardio_xp,
         last_updated: new Date().toISOString()
       });
 
