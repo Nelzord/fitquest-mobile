@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, FlatList, ActivityIndicator, Modal } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, FlatList, ActivityIndicator, Modal, ScrollView } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -9,6 +9,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityChart } from '@/components/ActivityChart';
 
 type Workout = {
   id: string;
@@ -49,6 +50,9 @@ export default function HistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colorScheme);
+  const [activityData, setActivityData] = useState<{ date: string; count: number }[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isChartExpanded, setIsChartExpanded] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -58,18 +62,29 @@ export default function HistoryScreen() {
 
   useEffect(() => {
     applyFilters();
-  }, [workouts, filterOptions]);
+  }, [workouts, filterOptions, selectedDate]);
 
   const fetchWorkouts = async () => {
     try {
       const { data, error } = await supabase
         .from('workouts')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setWorkouts(data || []);
+
+      // Process data for activity chart
+      const activityMap = new Map<string, number>();
+      data?.forEach(workout => {
+        const date = new Date(workout.created_at).toISOString().split('T')[0];
+        activityMap.set(date, (activityMap.get(date) || 0) + 1);
+      });
+
+      setActivityData(Array.from(activityMap.entries()).map(([date, count]) => ({
+        date,
+        count,
+      })));
     } catch (error) {
       console.error('Error fetching workouts:', error);
     } finally {
@@ -77,9 +92,21 @@ export default function HistoryScreen() {
     }
   };
 
+  const handleDayPress = (date: string) => {
+    setSelectedDate(selectedDate === date ? null : date);
+  };
+
   const applyFilters = () => {
     let sortedWorkouts = [...workouts];
     
+    // Apply date filter if selected
+    if (selectedDate) {
+      sortedWorkouts = sortedWorkouts.filter(workout => 
+        new Date(workout.created_at).toISOString().split('T')[0] === selectedDate
+      );
+    }
+    
+    // Apply sorting
     switch (filterOptions.sortBy) {
       case 'date':
         sortedWorkouts.sort((a, b) => 
@@ -223,9 +250,35 @@ export default function HistoryScreen() {
     </Modal>
   );
 
+  const ListHeader = () => (
+    <>
+      <ActivityChart 
+        data={activityData} 
+        onDayPress={handleDayPress}
+        selectedDate={selectedDate || undefined}
+        isExpanded={isChartExpanded}
+        onToggleExpand={() => setIsChartExpanded(!isChartExpanded)}
+      />
+      <ThemedView style={styles.header}>
+        <ThemedText style={styles.title}>
+          {selectedDate 
+            ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
+            : 'History'
+          }
+        </ThemedText>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <IconSymbol name="line.3.horizontal.decrease.circle" size={24} color={Colors[colorScheme].tint} />
+        </TouchableOpacity>
+      </ThemedView>
+    </>
+  );
+
   if (loading) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={Colors[colorScheme].tint} />
       </ThemedView>
     );
@@ -233,41 +286,25 @@ export default function HistoryScreen() {
 
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <ThemedText style={styles.title}>History</ThemedText>
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <IconSymbol name="line.3.horizontal.decrease.circle" size={24} color={Colors[colorScheme].tint} />
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors[colorScheme].tint} />
-        </View>
-      ) : (
-        <FlatList
-          data={filteredWorkouts}
-          renderItem={renderWorkoutItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <IconSymbol name="dumbbell" size={48} color={Colors[colorScheme].tint} />
-              <ThemedText style={styles.emptyText}>No workouts recorded yet</ThemedText>
-              <TouchableOpacity 
-                style={styles.startButton}
-                onPress={() => router.push('/(tabs)/startWorkout')}
-              >
-                <ThemedText style={styles.startButtonText}>Start Your First Workout</ThemedText>
-              </TouchableOpacity>
-            </View>
-          }
-        />
-      )}
-
+      <FlatList
+        data={filteredWorkouts}
+        renderItem={renderWorkoutItem}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={ListHeader}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <IconSymbol name="dumbbell" size={48} color={Colors[colorScheme].tint} />
+            <ThemedText style={styles.emptyText}>No workouts recorded yet</ThemedText>
+            <TouchableOpacity 
+              style={styles.startButton}
+              onPress={() => router.push('/(tabs)/startWorkout')}
+            >
+              <ThemedText style={styles.startButtonText}>Start Your First Workout</ThemedText>
+            </TouchableOpacity>
+          </View>
+        }
+      />
       <FilterModal />
     </ThemedView>
   );
@@ -276,6 +313,9 @@ export default function HistoryScreen() {
 const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
+  },
+  contentContainer: {
+    padding: 16,
   },
   listContent: {
     padding: 16,
