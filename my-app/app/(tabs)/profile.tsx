@@ -9,6 +9,7 @@ import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { Avatar } from '@/components/Avatar';
 
 interface UserStats {
   user_id: string;
@@ -103,14 +104,38 @@ export default function ProfileScreen() {
         <View style={styles.profileInfo}>
           <ThemedText style={styles.name}>{user?.email?.split('@')[0] || 'User'}</ThemedText>
           <ThemedText style={styles.email}>{user?.email}</ThemedText>
+          
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <IconSymbol name="star.fill" size={16} color={Colors[colorScheme].tint} />
+              <ThemedText style={styles.statText}>
+                {userStats?.xp || 0} XP
+              </ThemedText>
+            </View>
+            <View style={styles.statItem}>
+              <IconSymbol name="dollarsign.circle.fill" size={16} color={Colors[colorScheme].tint} />
+              <ThemedText style={styles.statText}>
+                {userStats?.gold || 0} Gold
+              </ThemedText>
+            </View>
+          </View>
         </View>
+      </ThemedView>
+
+      <ThemedView style={styles.avatarSection}>
+        <Avatar 
+          size={120}
+          style={styles.avatar}
+          skinTone="#FFD3B6"
+          shirtColor="#4A90E2"
+          pantsColor="#2C3E50"
+        />
       </ThemedView>
 
       <ThemedView style={styles.statsCard}>
         <View style={styles.levelContainer}>
           <ThemedText style={styles.levelText}>Level {userStats?.level || 1}</ThemedText>
           <View style={styles.xpContainer}>
-            <IconSymbol name="star.fill" size={16} color={Colors[colorScheme].tint} />
             <ThemedText style={styles.xpText}>
               {userStats?.xp || 0} / {calculateRequiredXP(userStats?.level || 1)} XP
             </ThemedText>
@@ -126,15 +151,6 @@ export default function ProfileScreen() {
               }
             ]} 
           />
-        </View>
-      </ThemedView>
-
-      <ThemedView style={styles.statsCard}>
-        <View style={styles.currencyContainer}>
-          <View style={styles.currencyItem}>
-            <IconSymbol name="dollarsign.circle.fill" size={24} color={Colors[colorScheme].tint} />
-            <ThemedText style={styles.currencyText}>{userStats?.gold || 0}</ThemedText>
-          </View>
         </View>
       </ThemedView>
 
@@ -313,5 +329,38 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  avatarSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 260, // or whatever fits your Avatar size
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderRadius: 12,
+  },
+  avatar: {
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 12,
+    gap: 20,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 
