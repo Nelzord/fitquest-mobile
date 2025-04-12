@@ -53,6 +53,7 @@ export default function HistoryScreen() {
   const [activityData, setActivityData] = useState<{ date: string; count: number }[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isChartExpanded, setIsChartExpanded] = useState(true);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -260,12 +261,22 @@ export default function HistoryScreen() {
         onToggleExpand={() => setIsChartExpanded(!isChartExpanded)}
       />
       <ThemedView style={styles.header}>
-        <ThemedText style={styles.title}>
-          {selectedDate 
-            ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
-            : 'History'
-          }
-        </ThemedText>
+        <TouchableOpacity 
+          style={styles.headerContent}
+          onPress={() => setIsHistoryExpanded(!isHistoryExpanded)}
+        >
+          <ThemedText style={styles.title}>
+            {selectedDate 
+              ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
+              : 'History'
+            }
+          </ThemedText>
+          <IconSymbol 
+            name={isHistoryExpanded ? "chevron.up" : "chevron.down"} 
+            size={20} 
+            color={Colors[colorScheme].text}
+          />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilterModal(true)}
@@ -287,22 +298,24 @@ export default function HistoryScreen() {
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
-        data={filteredWorkouts}
+        data={isHistoryExpanded ? filteredWorkouts : []}
         renderItem={renderWorkoutItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <IconSymbol name="dumbbell" size={48} color={Colors[colorScheme].tint} />
-            <ThemedText style={styles.emptyText}>No workouts recorded yet</ThemedText>
-            <TouchableOpacity 
-              style={styles.startButton}
-              onPress={() => router.push('/(tabs)/startWorkout')}
-            >
-              <ThemedText style={styles.startButtonText}>Start Your First Workout</ThemedText>
-            </TouchableOpacity>
-          </View>
+          filteredWorkouts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <IconSymbol name="dumbbell" size={48} color={Colors[colorScheme].tint} />
+              <ThemedText style={styles.emptyText}>No workouts recorded yet</ThemedText>
+              <TouchableOpacity 
+                style={styles.startButton}
+                onPress={() => router.push('/(tabs)/startWorkout')}
+              >
+                <ThemedText style={styles.startButtonText}>Start Your First Workout</ThemedText>
+              </TouchableOpacity>
+            </View>
+          ) : null
         }
       />
       <FilterModal />
@@ -466,5 +479,10 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 }); 
