@@ -26,18 +26,6 @@ interface UserStats {
   last_updated: string;
 }
 
-// Placeholder data
-const userData = {
-  name: 'John Doe',
-  level: 15,
-  currentXp: 650,
-  maxXp: 1000,
-  avatarUrl: 'https://via.placeholder.com/100', // Replace with actual avatar URL or local asset
-  totalWorkouts: 58,
-  currentStreak: 12,
-  badges: ['Badge1', 'Badge2', 'Badge3'],
-};
-
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const insets = useSafeAreaInsets();
@@ -124,11 +112,8 @@ export default function ProfileScreen() {
 
       <ThemedView style={styles.avatarSection}>
         <Avatar 
-          size={120}
+          size={300}
           style={styles.avatar}
-          skinTone="#FFD3B6"
-          shirtColor="#4A90E2"
-          pantsColor="#2C3E50"
         />
       </ThemedView>
 
@@ -333,7 +318,7 @@ const styles = StyleSheet.create({
   avatarSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    height: 260, // or whatever fits your Avatar size
+    height: 400, // or whatever fits your Avatar size
     overflow: 'hidden',
     marginBottom: 16,
     borderRadius: 12,
