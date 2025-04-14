@@ -4,16 +4,21 @@ CREATE TYPE item_slot_type AS ENUM ('head', 'chest', 'legs', 'feet', 'accessory'
 -- Create enum for muscle groups
 CREATE TYPE muscle_group AS ENUM ('chest', 'back', 'legs', 'shoulders', 'arms', 'core', 'cardio', 'all');
 
+-- Create enum for item rarity
+CREATE TYPE item_rarity AS ENUM ('common', 'uncommon', 'rare', 'epic', 'legendary');
+
 -- Create items table
 CREATE TABLE items (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
     slot_type item_slot_type NOT NULL,
+    rarity item_rarity NOT NULL,
     effect TEXT NOT NULL,
     xp_bonus JSONB NOT NULL, -- Format: {"muscle_group": "chest", "bonus": 10} or {"muscle_group": "all", "bonus": 5}
     gold_bonus INTEGER NOT NULL DEFAULT 0,
     luck_bonus INTEGER NOT NULL DEFAULT 0,
     image_path TEXT NOT NULL,
+    price INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

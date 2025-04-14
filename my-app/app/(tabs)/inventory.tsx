@@ -10,83 +10,52 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-type TabType = 'stats' | 'achievements' | 'items';
-
-interface WorkoutStats {
-  totalWorkouts: number;
-  totalDuration: number;
-  totalExercises: number;
-  totalSets: number;
-  totalVolume: number;
-}
+type TabType = 'shop' | 'achievements' | 'items';
 
 interface Item {
   id: string;
   name: string;
   slot_type: string;
-  rarity: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   effect: string;
   image_path: string;
   is_owned: boolean;
   is_equipped: boolean;
+  price: number;
 }
 
 export default function InventoryScreen() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme() ?? 'light';
-  const [activeTab, setActiveTab] = useState<TabType>('stats');
-  const [stats, setStats] = useState<WorkoutStats | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('shop');
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [userGold, setUserGold] = useState(0);
 
   useEffect(() => {
     if (user) {
-      fetchWorkoutStats();
       fetchItems();
+      fetchUserGold();
     }
   }, [user]);
 
-  const fetchWorkoutStats = async () => {
+  const fetchUserGold = async () => {
+    if (!user) return;
+
     try {
-      const { data: workouts, error } = await supabase
-        .from('workouts')
-        .select(`
-          id,
-          duration,
-          exercises (
-            id,
-            sets (
-              id,
-              weight,
-              reps
-            )
-          )
-        `)
-        .eq('user_id', user?.id);
+      const { data, error } = await supabase
+        .from('user_stats')
+        .select('gold')
+        .eq('user_id', user.id)
+        .single();
 
       if (error) throw error;
-
-      const stats: WorkoutStats = {
-        totalWorkouts: workouts?.length || 0,
-        totalDuration: workouts?.reduce((sum, workout) => sum + (workout.duration || 0), 0) || 0,
-        totalExercises: workouts?.reduce((sum, workout) => sum + (workout.exercises?.length || 0), 0) || 0,
-        totalSets: workouts?.reduce((sum, workout) => 
-          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
-            exerciseSum + (exercise.sets?.length || 0), 0) || 0), 0) || 0,
-        totalVolume: workouts?.reduce((sum, workout) => 
-          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
-            exerciseSum + (exercise.sets?.reduce((setSum, set) => 
-              setSum + ((set.weight || 0) * (set.reps || 0)), 0) || 0), 0) || 0), 0) || 0,
-      };
-
-      setStats(stats);
+      setUserGold(data.gold);
     } catch (error) {
-      console.error('Error fetching workout stats:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching user gold:', error);
     }
   };
 
@@ -158,61 +127,121 @@ export default function InventoryScreen() {
     }
   };
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  const handlePurchaseItem = async (item: Item) => {
+    if (!user || item.is_owned || userGold < item.price) return;
+
+    try {
+      // Start a transaction
+      const { error: purchaseError } = await supabase
+        .from('user_inventory')
+        .insert({
+          user_id: user.id,
+          item_id: item.id,
+          is_equipped: false
+        });
+
+      if (purchaseError) throw purchaseError;
+
+      const { error: goldError } = await supabase
+        .from('user_stats')
+        .update({ gold: userGold - item.price })
+        .eq('user_id', user.id);
+
+      if (goldError) throw goldError;
+
+      // Refresh data
+      fetchItems();
+      fetchUserGold();
+      setIsModalVisible(false);
+      alert(`Purchased ${item.name} for ${item.price} gold!`);
+    } catch (error) {
+      console.error('Error purchasing item:', error);
+      alert('Failed to purchase item');
+    }
   };
 
-  const renderStats = () => {
-    if (loading) {
-      return <ThemedText>Loading stats...</ThemedText>;
-    }
+  const handlePurchaseCapsule = async () => {
+    if (!user || userGold < 100) return;
 
-    if (!stats) {
-      return <ThemedText>No stats available</ThemedText>;
-    }
+    try {
+      // Get all items
+      const { data: allItems, error: itemsError } = await supabase
+        .from('items')
+        .select('*');
 
+      if (itemsError) throw itemsError;
+
+      // Filter out items the user already owns
+      const availableItems = allItems.filter(item => 
+        !items.some(ownedItem => ownedItem.id === item.id)
+      );
+
+      if (availableItems.length === 0) {
+        alert('No new items available to unlock!');
+        return;
+      }
+
+      // Select a random item
+      const randomItem = availableItems[Math.floor(Math.random() * availableItems.length)];
+
+      // Start a transaction
+      const { error: purchaseError } = await supabase
+        .from('user_inventory')
+        .insert({
+          user_id: user.id,
+          item_id: randomItem.id,
+          is_equipped: false
+        });
+
+      if (purchaseError) throw purchaseError;
+
+      const { error: goldError } = await supabase
+        .from('user_stats')
+        .update({ gold: userGold - 100 })
+        .eq('user_id', user.id);
+
+      if (goldError) throw goldError;
+
+      // Refresh data
+      fetchItems();
+      fetchUserGold();
+      alert(`You got a ${randomItem.name}!`);
+    } catch (error) {
+      console.error('Error purchasing capsule:', error);
+      alert('Failed to purchase capsule');
+    }
+  };
+
+  const renderShop = () => {
     return (
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Ionicons name="barbell" size={24} color={Colors[colorScheme].tint} />
-          <ThemedText style={styles.statValue}>{stats.totalWorkouts}</ThemedText>
-          <ThemedText style={styles.statLabel}>Total Workouts</ThemedText>
+      <View style={styles.tabContent}>
+        <View style={styles.goldContainer}>
+          <Ionicons name="cash" size={24} color="#FFD700" />
+          <ThemedText style={styles.goldText}>{userGold}</ThemedText>
         </View>
-        <View style={styles.statCard}>
-          <Ionicons name="time" size={24} color={Colors[colorScheme].tint} />
-          <ThemedText style={styles.statValue}>{formatDuration(stats.totalDuration)}</ThemedText>
-          <ThemedText style={styles.statLabel}>Total Time</ThemedText>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="fitness" size={24} color={Colors[colorScheme].tint} />
-          <ThemedText style={styles.statValue}>{stats.totalExercises}</ThemedText>
-          <ThemedText style={styles.statLabel}>Total Exercises</ThemedText>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="repeat" size={24} color={Colors[colorScheme].tint} />
-          <ThemedText style={styles.statValue}>{stats.totalSets}</ThemedText>
-          <ThemedText style={styles.statLabel}>Total Sets</ThemedText>
-        </View>
-        <View style={styles.statCard}>
-          <Ionicons name="scale" size={24} color={Colors[colorScheme].tint} />
-          <ThemedText style={styles.statValue}>{stats.totalVolume.toLocaleString()} kg</ThemedText>
-          <ThemedText style={styles.statLabel}>Total Volume</ThemedText>
-        </View>
+        <TouchableOpacity 
+          style={[styles.capsuleButton, userGold < 100 && styles.disabledButton]}
+          onPress={handlePurchaseCapsule}
+          disabled={userGold < 100}
+        >
+          <Ionicons name="gift" size={24} color="#FFD700" />
+          <ThemedText style={styles.capsuleText}>Mystery Capsule (100 gold)</ThemedText>
+        </TouchableOpacity>
+        <ThemedText style={styles.sectionTitle}>Available Items</ThemedText>
+        <InventoryGrid
+          items={items.filter(item => !item.is_owned)}
+          onItemPress={handleItemPress}
+          onEquipItem={handleEquipItem}
+          userGold={userGold}
+        />
       </View>
     );
   };
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'stats':
-        return (
-          <ScrollView style={styles.tabContent}>
-            <ThemedText style={styles.sectionTitle}>Your Stats</ThemedText>
-            {renderStats()}
-          </ScrollView>
-        );
+      case 'shop':
+        return renderShop();
       case 'achievements':
         return (
           <View style={styles.tabContent}>
@@ -223,26 +252,76 @@ export default function InventoryScreen() {
       case 'items':
         return (
           <View style={styles.tabContent}>
-            <ThemedText style={styles.sectionTitle}>Items</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Your Items</ThemedText>
             <InventoryGrid
-              items={items}
+              items={items.filter(item => item.is_owned)}
               onItemPress={handleItemPress}
               onEquipItem={handleEquipItem}
+              userGold={userGold}
             />
           </View>
         );
     }
   };
 
+  const renderModalContent = () => {
+    if (!selectedItem) return null;
+
+    return (
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <ThemedText style={styles.modalTitle}>{selectedItem.name}</ThemedText>
+          <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+            <Ionicons name="close" size={24} color={Colors[colorScheme].text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.itemDetails}>
+          <ThemedText style={styles.detailText}>Slot: {selectedItem.slot_type}</ThemedText>
+          <ThemedText style={styles.detailText}>Rarity: {selectedItem.rarity}</ThemedText>
+          <ThemedText style={styles.detailText}>Effect: {selectedItem.effect}</ThemedText>
+          {!selectedItem.is_owned && (
+            <ThemedText style={styles.detailText}>Price: {selectedItem.price} gold</ThemedText>
+          )}
+        </View>
+        {selectedItem.is_owned ? (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              selectedItem.is_equipped && styles.equippedButton
+            ]}
+            onPress={() => handleEquipItem(selectedItem)}
+          >
+            <ThemedText style={styles.actionButtonText}>
+              {selectedItem.is_equipped ? 'Equipped' : 'Equip'}
+            </ThemedText>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              userGold < selectedItem.price && styles.disabledButton
+            ]}
+            onPress={() => handlePurchaseItem(selectedItem)}
+            disabled={userGold < selectedItem.price}
+          >
+            <ThemedText style={styles.actionButtonText}>
+              {userGold < selectedItem.price ? 'Not Enough Gold' : 'Purchase'}
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.tabBar}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'stats' && styles.activeTab]}
-          onPress={() => setActiveTab('stats')}
+          style={[styles.tab, activeTab === 'shop' && styles.activeTab]}
+          onPress={() => setActiveTab('shop')}
         >
-          <Ionicons name="stats-chart" size={24} color={activeTab === 'stats' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
-          <ThemedText style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>Stats</ThemedText>
+          <Ionicons name="cart" size={24} color={activeTab === 'shop' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
+          <ThemedText style={[styles.tabText, activeTab === 'shop' && styles.activeTabText]}>Shop</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'achievements' && styles.activeTab]}
@@ -270,38 +349,7 @@ export default function InventoryScreen() {
         onRequestClose={() => setIsModalVisible(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            {selectedItem && (
-              <>
-                <View style={styles.modalHeader}>
-                  <ThemedText style={styles.modalTitle}>{selectedItem.name}</ThemedText>
-                  <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                    <Ionicons name="close" size={24} color="#666" />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.itemDetails}>
-                  <ThemedText style={styles.detailText}>Slot: {selectedItem.slot_type}</ThemedText>
-                  <ThemedText style={styles.detailText}>Rarity: {selectedItem.rarity}</ThemedText>
-                  <ThemedText style={styles.detailText}>Effect: {selectedItem.effect}</ThemedText>
-                </View>
-
-                {selectedItem.is_owned && (
-                  <TouchableOpacity
-                    style={[
-                      styles.equipButton,
-                      selectedItem.is_equipped && styles.equippedButton
-                    ]}
-                    onPress={() => handleEquipItem(selectedItem)}
-                  >
-                    <ThemedText style={styles.equipButtonText}>
-                      {selectedItem.is_equipped ? 'Equipped' : 'Equip'}
-                    </ThemedText>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-          </View>
+          {renderModalContent()}
         </View>
       </Modal>
     </ThemedView>
@@ -347,28 +395,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
   },
-  statsGrid: {
+  goldContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    width: '47%',
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
   },
-  statValue: {
-    fontSize: 24,
+  goldText: {
+    fontSize: 20,
     fontWeight: 'bold',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    opacity: 0.7,
-    textAlign: 'center',
+    marginLeft: 8,
   },
   modalContainer: {
     flex: 1,
@@ -400,7 +438,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
   },
-  equipButton: {
+  actionButton: {
     backgroundColor: '#4CAF50',
     padding: 12,
     borderRadius: 8,
@@ -409,8 +447,24 @@ const styles = StyleSheet.create({
   equippedButton: {
     backgroundColor: '#666',
   },
-  equipButtonText: {
+  disabledButton: {
+    backgroundColor: '#999',
+  },
+  actionButtonText: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  capsuleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  capsuleText: {
+    marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
   },

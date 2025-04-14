@@ -89,6 +89,7 @@ CREATE TABLE items (
     luck_bonus INTEGER NOT NULL DEFAULT 0,
     power_bonus INTEGER NOT NULL DEFAULT 0,
     image_path TEXT NOT NULL,
+    price INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

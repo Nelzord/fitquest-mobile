@@ -1,53 +1,92 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList, Modal, TextInput } from 'react-native';
 import { ThemedView } from './ThemedView';
 import { ThemedText } from './ThemedText';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ItemDetailsModal } from './ItemDetailsModal';
-
-// Import images statically
-import cowboyHat from '@/assets/images/items/cowboy_hat.png';
-
-// Create a mapping of image paths to imported images
-const itemImages: { [key: string]: any } = {
-  'cowboy_hat.png': cowboyHat,
-};
+import { Colors } from '../constants/Colors';
+import { ItemPopup } from './ItemPopup';
 
 interface Item {
   id: string;
   name: string;
   slot_type: string;
-  rarity: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   effect: string;
   image_path: string;
   is_owned: boolean;
   is_equipped: boolean;
+  price: number;
 }
 
 interface InventoryGridProps {
   items: Item[];
   onItemPress: (item: Item) => void;
   onEquipItem: (item: Item) => void;
+  userGold: number;
 }
 
-const slotTypes = ['head', 'chest', 'legs', 'feet', 'accessory'];
+const rarityColors = {
+  common: '#808080',
+  uncommon: '#2E8B57',
+  rare: '#4169E1',
+  epic: '#9932CC',
+  legendary: '#FFD700'
+};
 
-export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress, onEquipItem }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+const rarityGlowColors = {
+  common: 'rgba(128, 128, 128, 0.3)',
+  uncommon: 'rgba(46, 139, 87, 0.3)',
+  rare: 'rgba(65, 105, 225, 0.3)',
+  epic: 'rgba(153, 50, 204, 0.3)',
+  legendary: 'rgba(255, 215, 0, 0.3)'
+};
+
+export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress, onEquipItem, userGold }) => {
+  const colorScheme = useColorScheme() ?? 'light';
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRarity, setSelectedRarity] = useState<string | null>(null);
+
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesRarity = !selectedRarity || item.rarity === selectedRarity;
+      return matchesSearch && matchesRarity;
+    });
+  }, [items, searchQuery, selectedRarity]);
 
   const getItemImage = (imagePath: string) => {
-    return itemImages[imagePath] || null;
+    try {
+      // Import images statically
+      const images: { [key: string]: any } = {
+        'sweatband.png': require('../assets/images/items/sweatband.png'),
+        'basic_sneakers.png': require('../assets/images/items/basic_sneakers.png'),
+        'cowboy_hat.png': require('../assets/images/items/cowboy_hat.png'),
+        'leather_gloves.png': require('../assets/images/items/leather_gloves.png'),
+        'weighted_vest.png': require('../assets/images/items/weighted_vest.png'),
+        'trail_boots.png': require('../assets/images/items/trail_boots.png'),
+        'champion_headband.png': require('../assets/images/items/champion_headband.png'),
+        'power_gauntlets.png': require('../assets/images/items/power_gauntlets.png'),
+        'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
+        'golden_crown.png': require('../assets/images/items/golden_crown.png')
+      };
+      return images[imagePath] || null;
+    } catch (error) {
+      console.error('Error loading image:', error);
+      return null;
+    }
   };
 
   const handleItemPress = (item: Item) => {
     setSelectedItem(item);
+    setShowPopup(true);
   };
 
-  const handleCloseModal = () => {
-    setSelectedItem(null);
+  const handleClosePopup = () => {
+    setShowPopup(false);
   };
 
   const handleEquip = () => {
@@ -57,123 +96,222 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
     }
   };
 
+  const renderFilterModal = () => {
+    return (
+      <Modal
+        visible={showFilterModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5' }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Filters</ThemedText>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <Ionicons name="close" size={24} color={Colors[colorScheme].text} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.filterContent}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search items..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              <View style={styles.raritySection}>
+                <ThemedText style={styles.sectionTitle}>Rarity</ThemedText>
+                <View style={styles.rarityOptions}>
+                  {Object.keys(rarityColors).map(rarity => (
+                    <TouchableOpacity
+                      key={rarity}
+                      style={[
+                        styles.rarityOption,
+                        selectedRarity === rarity && styles.selectedRarityOption,
+                        { borderColor: rarityColors[rarity as keyof typeof rarityColors] }
+                      ]}
+                      onPress={() => setSelectedRarity(selectedRarity === rarity ? null : rarity)}
+                    >
+                      <ThemedText style={styles.rarityOptionText}>{rarity}</ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderItem = ({ item }: { item: Item }) => {
-    const rarityColors = {
-      common: '#808080',
-      uncommon: '#2E8B57',
-      rare: '#4169E1',
-      epic: '#9932CC',
-      legendary: '#FFD700'
-    };
-
-    const itemImage = getItemImage(item.image_path);
-
     return (
       <TouchableOpacity
-        style={styles.itemContainer}
-        onPress={() => handleItemPress(item)}
+        style={[
+          styles.itemContainer,
+          { borderColor: rarityColors[item.rarity] },
+          { shadowColor: rarityGlowColors[item.rarity] }
+        ]}
+        onPress={() => setSelectedItem(item)}
       >
-        <View style={[
-          styles.itemImageContainer,
-          { backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5' },
-          !item.is_owned && styles.lockedItem
-        ]}>
-          {item.is_owned ? (
-            itemImage ? (
-              <Image
-                source={itemImage}
-                style={styles.itemImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.placeholderImage}>
-                <Ionicons name="image" size={24} color={isDark ? '#666' : '#999'} />
-              </View>
-            )
+        <View style={styles.itemImageContainer}>
+          {getItemImage(item.image_path) ? (
+            <Image source={getItemImage(item.image_path)} style={styles.itemImage} />
           ) : (
-            <View style={styles.lockedOverlay}>
-              <Ionicons name="lock-closed" size={20} color={isDark ? '#666' : '#999'} />
+            <View style={styles.placeholderImage}>
+              <Ionicons name="image" size={24} color="#666" />
             </View>
           )}
           {item.is_equipped && (
             <View style={styles.equippedBadge}>
-              <Ionicons name="checkmark-circle" size={12} color="#4CAF50" />
+              <Ionicons name="checkmark" size={12} color="white" />
             </View>
           )}
         </View>
-        <View style={styles.itemInfo}>
-          <ThemedText style={styles.itemName}>{item.name}</ThemedText>
-          <View style={[
-            styles.rarityBadge,
-            { backgroundColor: rarityColors[item.rarity as keyof typeof rarityColors] }
-          ]}>
-            <ThemedText style={styles.rarityText}>{item.rarity}</ThemedText>
-          </View>
-        </View>
+        <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+        <ThemedText style={[styles.itemRarity, { color: rarityColors[item.rarity] }]}>
+          {item.rarity}
+        </ThemedText>
+        {!item.is_owned && (
+          <TouchableOpacity
+            style={styles.buyButton}
+            onPress={() => setSelectedItem(item)}
+          >
+            <ThemedText style={styles.buyButtonText}>{item.price} gold</ThemedText>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     );
   };
 
-  const renderSection = (slotType: string) => {
-    const sectionItems = items.filter(item => item.slot_type === slotType);
-    if (sectionItems.length === 0) return null;
+  const renderModalContent = () => {
+    if (!selectedItem) return null;
 
     return (
-      <View key={slotType}>
-        <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionHeaderText}>
-            {slotType.charAt(0).toUpperCase() + slotType.slice(1)}
-          </ThemedText>
+      <View style={[styles.modalContent, { backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5' }]}>
+        <View style={styles.modalHeader}>
+          <ThemedText style={styles.modalTitle}>{selectedItem.name}</ThemedText>
+          <TouchableOpacity onPress={() => setSelectedItem(null)}>
+            <Ionicons name="close" size={24} color={Colors[colorScheme].text} />
+          </TouchableOpacity>
         </View>
-        <FlatList
-          data={sectionItems}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          numColumns={4}
-          scrollEnabled={false}
-          contentContainerStyle={styles.sectionContent}
-        />
+        <View style={styles.itemDetails}>
+          <ThemedText style={styles.detailText}>Slot: {selectedItem.slot_type}</ThemedText>
+          <ThemedText style={styles.detailText}>Rarity: {selectedItem.rarity}</ThemedText>
+          <ThemedText style={styles.detailText}>Effect: {selectedItem.effect}</ThemedText>
+          {!selectedItem.is_owned && (
+            <ThemedText style={styles.detailText}>Price: {selectedItem.price} gold</ThemedText>
+          )}
+        </View>
+        <View style={styles.modalButtons}>
+          {selectedItem.is_owned ? (
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                selectedItem.is_equipped && styles.equippedButton
+              ]}
+              onPress={() => {
+                onEquipItem(selectedItem);
+                setSelectedItem(null);
+              }}
+            >
+              <ThemedText style={styles.actionButtonText}>
+                {selectedItem.is_equipped ? 'Equipped' : 'Equip'}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                userGold < selectedItem.price && styles.disabledButton
+              ]}
+              onPress={() => {
+                if (userGold >= selectedItem.price) {
+                  onItemPress(selectedItem);
+                }
+                setSelectedItem(null);
+              }}
+              disabled={userGold < selectedItem.price}
+            >
+              <ThemedText style={styles.actionButtonText}>
+                {userGold < selectedItem.price ? 'Not Enough Gold' : 'Purchase'}
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setSelectedItem(null)}
+          >
+            <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
 
   return (
-    <>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <Ionicons name="filter" size={24} color={Colors[colorScheme].text} />
+        </TouchableOpacity>
+      </View>
       <FlatList
-        data={slotTypes}
-        renderItem={({ item }) => renderSection(item)}
-        keyExtractor={(item) => item}
-        contentContainerStyle={styles.gridContainer}
+        data={filteredItems}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
+        contentContainerStyle={styles.grid}
       />
-      <ItemDetailsModal
-        item={selectedItem}
-        onClose={handleCloseModal}
-        onEquip={handleEquip}
-      />
-    </>
+      {showPopup && selectedItem && (
+        <ItemPopup
+          item={selectedItem}
+          onClose={handleClosePopup}
+        />
+      )}
+      <Modal
+        visible={!!selectedItem && !showPopup}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedItem(null)}
+      >
+        <View style={styles.modalContainer}>
+          {renderModalContent()}
+        </View>
+      </Modal>
+      {renderFilterModal()}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  gridContainer: {
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     padding: 8,
   },
-  sectionHeader: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  filterButton: {
+    padding: 8,
   },
-  sectionHeaderText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  sectionContent: {
-    paddingHorizontal: 8,
+  grid: {
+    padding: 8,
   },
   itemContainer: {
     flex: 1,
     margin: 4,
-    maxWidth: '25%',
+    maxWidth: '33.33%',
+    borderRadius: 8,
+    borderWidth: 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 10,
+    shadowOpacity: 1,
+    elevation: 5,
   },
   itemImageContainer: {
     aspectRatio: 1,
@@ -191,40 +329,140 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
-  lockedItem: {
-    opacity: 0.5,
-  },
-  lockedOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-  },
   equippedBadge: {
     position: 'absolute',
     top: 4,
     right: 4,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 8,
+    borderRadius: 6,
     padding: 2,
   },
-  itemInfo: {
-    marginTop: 4,
-  },
   itemName: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
     marginBottom: 2,
+    textAlign: 'center',
   },
-  rarityBadge: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  rarityText: {
-    fontSize: 10,
+  itemRarity: {
+    fontSize: 8,
     fontWeight: '500',
+    textAlign: 'center',
+  },
+  buyButton: {
+    backgroundColor: '#4CAF50',
+    padding: 4,
+    borderRadius: 4,
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  buyButtonText: {
     color: 'white',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+  },
+  filterContent: {
+    padding: 16,
+  },
+  searchInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  raritySection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  rarityOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  rarityOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  selectedRarityOption: {
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  rarityOptionText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  itemDetails: {
+    marginBottom: 16,
+  },
+  detailText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  actionButton: {
+    backgroundColor: '#4CAF50',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  equippedButton: {
+    backgroundColor: '#2E8B57',
+  },
+  disabledButton: {
+    backgroundColor: '#666',
+  },
+  cancelButton: {
+    backgroundColor: '#666',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

@@ -10,6 +10,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActivityChart } from '@/components/ActivityChart';
+import { Ionicons } from '@expo/vector-icons';
 
 type Workout = {
   id: string;
@@ -25,6 +26,14 @@ type FilterOptions = {
   sortBy: 'date' | 'sets' | 'volume' | 'exercises';
   order: 'asc' | 'desc';
 };
+
+interface WorkoutStats {
+  totalWorkouts: number;
+  totalDuration: number;
+  totalExercises: number;
+  totalSets: number;
+  totalVolume: number;
+}
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -54,10 +63,13 @@ export default function HistoryScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isChartExpanded, setIsChartExpanded] = useState(true);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
+  const [stats, setStats] = useState<WorkoutStats | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchWorkouts();
+      fetchWorkoutStats();
     }
   }, [user]);
 
@@ -90,6 +102,45 @@ export default function HistoryScreen() {
       console.error('Error fetching workouts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWorkoutStats = async () => {
+    try {
+      const { data: workouts, error } = await supabase
+        .from('workouts')
+        .select(`
+          id,
+          duration,
+          exercises (
+            id,
+            sets (
+              id,
+              weight,
+              reps
+            )
+          )
+        `)
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      const stats: WorkoutStats = {
+        totalWorkouts: workouts?.length || 0,
+        totalDuration: workouts?.reduce((sum, workout) => sum + (workout.duration || 0), 0) || 0,
+        totalExercises: workouts?.reduce((sum, workout) => sum + (workout.exercises?.length || 0), 0) || 0,
+        totalSets: workouts?.reduce((sum, workout) => 
+          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
+            exerciseSum + (exercise.sets?.length || 0), 0) || 0), 0) || 0,
+        totalVolume: workouts?.reduce((sum, workout) => 
+          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
+            exerciseSum + (exercise.sets?.reduce((setSum, set) => 
+              setSum + ((set.weight || 0) * (set.reps || 0)), 0) || 0), 0) || 0), 0) || 0,
+      };
+
+      setStats(stats);
+    } catch (error) {
+      console.error('Error fetching workout stats:', error);
     }
   };
 
@@ -287,6 +338,69 @@ export default function HistoryScreen() {
     </>
   );
 
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  };
+
+  const renderStats = () => {
+    if (loading) {
+      return <ThemedText>Loading stats...</ThemedText>;
+    }
+
+    if (!stats) {
+      return <ThemedText>No stats available</ThemedText>;
+    }
+
+    return (
+      <View style={styles.statsGrid}>
+        <View style={styles.statCard}>
+          <Ionicons name="barbell" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{stats.totalWorkouts}</ThemedText>
+          <ThemedText style={styles.statLabel}>Total Workouts</ThemedText>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="time" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{formatDuration(stats.totalDuration)}</ThemedText>
+          <ThemedText style={styles.statLabel}>Total Time</ThemedText>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="fitness" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{stats.totalExercises}</ThemedText>
+          <ThemedText style={styles.statLabel}>Total Exercises</ThemedText>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="repeat" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{stats.totalSets}</ThemedText>
+          <ThemedText style={styles.statLabel}>Total Sets</ThemedText>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="scale" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{stats.totalVolume.toLocaleString()} kg</ThemedText>
+          <ThemedText style={styles.statLabel}>Total Volume</ThemedText>
+        </View>
+      </View>
+    );
+  };
+
+  const ListFooter = () => (
+    <ThemedView style={styles.statsSection}>
+      <TouchableOpacity 
+        style={styles.headerContent}
+        onPress={() => setIsStatsExpanded(!isStatsExpanded)}
+      >
+        <ThemedText style={styles.title}>Your Stats</ThemedText>
+        <IconSymbol 
+          name={isStatsExpanded ? "chevron.up" : "chevron.down"} 
+          size={20} 
+          color={Colors[colorScheme].text}
+        />
+      </TouchableOpacity>
+      {isStatsExpanded && renderStats()}
+    </ThemedView>
+  );
+
   if (loading) {
     return (
       <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
@@ -302,6 +416,7 @@ export default function HistoryScreen() {
         renderItem={renderWorkoutItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}
+        ListFooterComponent={ListFooter}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           filteredWorkouts.length === 0 ? (
@@ -326,6 +441,38 @@ export default function HistoryScreen() {
 const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  statCard: {
+    width: '47%',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
   },
   contentContainer: {
     padding: 16,
@@ -484,5 +631,9 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  statsSection: {
+    marginTop: 24,
+    paddingHorizontal: 16,
   },
 }); 
