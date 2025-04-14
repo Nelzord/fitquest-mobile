@@ -1,22 +1,27 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSegments } from 'expo-router';
-
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-function RootLayoutNav() {
+function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null | undefined }) {
   const { isAuthenticated, isGuest, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [navigationTheme, setNavigationTheme] = useState<any>(null);
+
+  useEffect(() => {
+    import('@react-navigation/native').then(({ DarkTheme, DefaultTheme, ThemeProvider }) => {
+      setNavigationTheme({ DarkTheme, DefaultTheme, ThemeProvider });
+    });
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -32,11 +37,15 @@ function RootLayoutNav() {
     }
   }, [isAuthenticated, isGuest, segments, loading]);
 
+  if (!navigationTheme) return null;
+
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
+    <navigationTheme.ThemeProvider value={colorScheme === 'dark' ? navigationTheme.DarkTheme : navigationTheme.DefaultTheme}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    </navigationTheme.ThemeProvider>
   );
 }
 
@@ -58,10 +67,8 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <RootLayoutNav />
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <RootLayoutNav colorScheme={colorScheme} />
+      <StatusBar style="auto" />
     </AuthProvider>
   );
 }
