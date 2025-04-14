@@ -36,7 +36,8 @@ export const Colors = {
     placeholderText: textMutedLight,
     cardBackground: primaryLightBg,
     borderColor: '#E5E5EA',
-    danger: '#FF3B30', 
+    danger: '#FF3B30',
+    border: '#e0e0e0',
   },
   dark: {
     text: textDark,
@@ -57,5 +58,6 @@ export const Colors = {
     cardBackground: secondaryDarkBg,
     borderColor: '#3A3A3C',
     danger: '#FF453A',
+    border: '#2c2c2e',
   },
 };

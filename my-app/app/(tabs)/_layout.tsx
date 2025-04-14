@@ -8,9 +8,9 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-type TabBarIconProps = {
+interface TabBarIconProps {
   color: string;
-};
+}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -19,6 +19,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].tabIconDefault,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
@@ -30,32 +31,39 @@ export default function TabLayout() {
           default: {},
         }),
       }}>
+      
       <Tabs.Screen
         name="index"
         options={{
           href: null,
-          tabBarStyle: { display: 'none' },
         }}
       />
       <Tabs.Screen
         name="startWorkout"
         options={{
-          title: 'Start Workout',
-          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="figure.walk" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="person.fill" color={color} />,
+          title: 'Start',
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol name="dumbbell" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol size={28} name="clock" color={color} />,
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol name="clock" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: 'Inventory',
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol name="bag" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }: TabBarIconProps) => <IconSymbol name="person" size={24} color={color} />,
         }}
       />
     </Tabs>
