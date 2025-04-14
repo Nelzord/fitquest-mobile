@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { ThemedView } from './ThemedView';
 import { ThemedText } from './ThemedText';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { ItemDetailsModal } from './ItemDetailsModal';
 
 // Import images statically
 import cowboyHat from '@/assets/images/items/cowboy_hat.png';
@@ -27,14 +28,33 @@ interface Item {
 interface InventoryGridProps {
   items: Item[];
   onItemPress: (item: Item) => void;
+  onEquipItem: (item: Item) => void;
 }
 
-export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress }) => {
+const slotTypes = ['head', 'chest', 'legs', 'feet', 'accessory'];
+
+export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress, onEquipItem }) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   const getItemImage = (imagePath: string) => {
     return itemImages[imagePath] || null;
+  };
+
+  const handleItemPress = (item: Item) => {
+    setSelectedItem(item);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedItem(null);
+  };
+
+  const handleEquip = () => {
+    if (selectedItem) {
+      onEquipItem(selectedItem);
+      setSelectedItem(null);
+    }
   };
 
   const renderItem = ({ item }: { item: Item }) => {
@@ -51,7 +71,7 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
     return (
       <TouchableOpacity
         style={styles.itemContainer}
-        onPress={() => onItemPress(item)}
+        onPress={() => handleItemPress(item)}
       >
         <View style={[
           styles.itemImageContainer,
@@ -67,17 +87,17 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
               />
             ) : (
               <View style={styles.placeholderImage}>
-                <Ionicons name="image" size={32} color={isDark ? '#666' : '#999'} />
+                <Ionicons name="image" size={24} color={isDark ? '#666' : '#999'} />
               </View>
             )
           ) : (
             <View style={styles.lockedOverlay}>
-              <Ionicons name="lock-closed" size={24} color={isDark ? '#666' : '#999'} />
+              <Ionicons name="lock-closed" size={20} color={isDark ? '#666' : '#999'} />
             </View>
           )}
           {item.is_equipped && (
             <View style={styles.equippedBadge}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+              <Ionicons name="checkmark-circle" size={12} color="#4CAF50" />
             </View>
           )}
         </View>
@@ -94,14 +114,43 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
     );
   };
 
+  const renderSection = (slotType: string) => {
+    const sectionItems = items.filter(item => item.slot_type === slotType);
+    if (sectionItems.length === 0) return null;
+
+    return (
+      <View key={slotType}>
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionHeaderText}>
+            {slotType.charAt(0).toUpperCase() + slotType.slice(1)}
+          </ThemedText>
+        </View>
+        <FlatList
+          data={sectionItems}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={4}
+          scrollEnabled={false}
+          contentContainerStyle={styles.sectionContent}
+        />
+      </View>
+    );
+  };
+
   return (
-    <FlatList
-      data={items}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.id}
-      numColumns={2}
-      contentContainerStyle={styles.gridContainer}
-    />
+    <>
+      <FlatList
+        data={slotTypes}
+        renderItem={({ item }) => renderSection(item)}
+        keyExtractor={(item) => item}
+        contentContainerStyle={styles.gridContainer}
+      />
+      <ItemDetailsModal
+        item={selectedItem}
+        onClose={handleCloseModal}
+        onEquip={handleEquip}
+      />
+    </>
   );
 };
 
@@ -109,14 +158,26 @@ const styles = StyleSheet.create({
   gridContainer: {
     padding: 8,
   },
+  sectionHeader: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  sectionHeaderText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sectionContent: {
+    paddingHorizontal: 8,
+  },
   itemContainer: {
     flex: 1,
-    margin: 8,
-    maxWidth: '50%',
+    margin: 4,
+    maxWidth: '25%',
   },
   itemImageContainer: {
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -141,28 +202,28 @@ const styles = StyleSheet.create({
   },
   equippedBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 4,
+    right: 4,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 12,
-    padding: 4,
+    borderRadius: 8,
+    padding: 2,
   },
   itemInfo: {
-    marginTop: 8,
+    marginTop: 4,
   },
   itemName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   rarityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     borderRadius: 4,
     alignSelf: 'flex-start',
   },
   rarityText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
     color: 'white',
   },

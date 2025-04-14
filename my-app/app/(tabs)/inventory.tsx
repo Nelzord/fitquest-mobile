@@ -227,6 +227,7 @@ export default function InventoryScreen() {
             <InventoryGrid
               items={items}
               onItemPress={handleItemPress}
+              onEquipItem={handleEquipItem}
             />
           </View>
         );
