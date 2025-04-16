@@ -270,6 +270,7 @@ const TopWorkoutControlPanel = ({
   onStart,
   onFinish,
   onReset,
+  onCancel,
   isWorkoutActive,
   isSaving
 }: {
@@ -277,12 +278,13 @@ const TopWorkoutControlPanel = ({
   onStart: () => void,
   onFinish: () => void,
   onReset: () => void,
+  onCancel: () => void,
   isWorkoutActive: boolean,
   isSaving: boolean
 }) => {
   const colorScheme = useRNColorScheme() ?? 'light';
   const styles = getStyles(colorScheme);
-  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -290,17 +292,17 @@ const TopWorkoutControlPanel = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleFinishPress = () => {
-    setShowFinishConfirm(true);
+  const handleCancelPress = () => {
+    setShowCancelConfirm(true);
   };
 
-  const handleConfirmFinish = () => {
-    setShowFinishConfirm(false);
-    onFinish();
+  const handleConfirmCancel = () => {
+    setShowCancelConfirm(false);
+    onCancel();
   };
 
-  const handleCancelFinish = () => {
-    setShowFinishConfirm(false);
+  const handleCancelCancel = () => {
+    setShowCancelConfirm(false);
   };
 
   return (
@@ -319,9 +321,15 @@ const TopWorkoutControlPanel = ({
               >
                 <IconSymbol name="arrow.clockwise" size={16} color={Colors[colorScheme].tint} />
               </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.cancelWorkoutButton}
+                onPress={handleCancelPress}
+              >
+                <IconSymbol name="xmark" size={16} color={Colors[colorScheme].danger} />
+              </TouchableOpacity>
             </View>
             <TouchableOpacity 
-              onPress={handleFinishPress}
+              onPress={onFinish}
               activeOpacity={0.7}
               disabled={isSaving}
             >
@@ -346,30 +354,30 @@ const TopWorkoutControlPanel = ({
         )}
       </View>
 
-      {/* Finish Confirmation Modal */}
+      {/* Cancel Confirmation Modal */}
       <Modal
-        visible={showFinishConfirm}
+        visible={showCancelConfirm}
         transparent={true}
         animationType="fade"
       >
         <View style={styles.modalOverlay}>
           <View style={styles.confirmationModal}>
-            <ThemedText style={styles.confirmationTitle}>Finish Workout?</ThemedText>
+            <ThemedText style={styles.confirmationTitle}>Cancel Workout?</ThemedText>
             <ThemedText style={styles.confirmationText}>
-              Are you sure you want to finish this workout? This action cannot be undone.
+              Are you sure you want to cancel this workout? All progress will be lost.
             </ThemedText>
             <View style={styles.confirmationButtons}>
               <TouchableOpacity 
                 style={[styles.confirmationButton, styles.cancelButton]}
-                onPress={handleCancelFinish}
+                onPress={handleCancelCancel}
               >
-                <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+                <ThemedText style={styles.cancelButtonText}>No, Continue</ThemedText>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.confirmationButton, styles.finishButton]}
-                onPress={handleConfirmFinish}
+                style={[styles.confirmationButton, styles.confirmButton]}
+                onPress={handleConfirmCancel}
               >
-                <ThemedText style={styles.finishButtonText}>Finish</ThemedText>
+                <ThemedText style={styles.confirmButtonText}>Yes, Cancel</ThemedText>
               </TouchableOpacity>
             </View>
           </View>
@@ -421,7 +429,7 @@ const DurationFilterModal = ({ visible, onClose, onApplyFilters }: { visible: bo
             </TouchableOpacity>
           ))}
           
-          <View style={styles.modalButtonContainer}>
+          <View style={styles.modalButtons}>
             <TouchableOpacity 
               style={[styles.modalButton, styles.applyButton]} 
               onPress={() => {
@@ -469,6 +477,7 @@ export default function StartWorkoutScreen() {
     currentXP: number;
     requiredXP: number;
   } | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Memoize filtered data - now includes category filtering
   const filteredWorkoutData = useMemo(() => {
@@ -537,17 +546,33 @@ export default function StartWorkoutScreen() {
     setExercises(exercises.map(ex => ex.id === id ? { ...ex, name: name } : ex));
   };
 
-  // Updated addSet to handle different types
+  // Updated addSet to handle different types and copy previous set values
   const addSet = (exerciseId: string) => {
     setExercises(exercises.map(ex => {
       if (ex.id === exerciseId) {
         let newSet: Set;
+        const lastSet = ex.sets[ex.sets.length - 1]; // Get the last set
+        
         if (ex.type === 'standard') {
-          newSet = { id: Date.now().toString(), completed: false, reps: '', weight: '' };
+          newSet = { 
+            id: Date.now().toString(), 
+            completed: false, 
+            reps: lastSet?.reps ?? '', 
+            weight: lastSet?.weight ?? '' 
+          };
         } else if (ex.type === 'bodyweight') {
-          newSet = { id: Date.now().toString(), completed: false, reps: '' }; // No weight for bodyweight
+          newSet = { 
+            id: Date.now().toString(), 
+            completed: false, 
+            reps: lastSet?.reps ?? '' 
+          };
         } else { // Timed
-          newSet = { id: Date.now().toString(), completed: false, duration: '', distance: '' };
+          newSet = { 
+            id: Date.now().toString(), 
+            completed: false, 
+            duration: lastSet?.duration ?? '', 
+            distance: lastSet?.distance ?? '' 
+          };
         }
         return { ...ex, sets: [...ex.sets, newSet] };
       }
@@ -865,6 +890,13 @@ export default function StartWorkoutScreen() {
     return filtered;
   };
 
+  const handleCancelWorkout = () => {
+    setIsWorkoutActive(false);
+    setExercises([]);
+    setNotes('');
+    setTime(0);
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -879,6 +911,7 @@ export default function StartWorkoutScreen() {
             onStart={startWorkout} 
             onFinish={finishWorkout}
             onReset={resetTimer}
+            onCancel={handleCancelWorkout}
             isWorkoutActive={isWorkoutActive} 
             isSaving={isSaving}
           />
@@ -968,7 +1001,6 @@ export default function StartWorkoutScreen() {
               sections={filteredWorkoutData}
               keyExtractor={(item, index) => item.name + index}
               renderItem={({ item }) => (
-                // Pass the whole item (CommonExercise) to addSelectedExercise
                 <TouchableOpacity style={styles.modalItem} onPress={() => addSelectedExercise(item)}>
                   <ThemedText style={styles.modalItemText}>{item.name}</ThemedText>
                   <ThemedText style={styles.modalItemSubText}>{item.muscle} {item.equipment ? `(${item.equipment})` : ''}</ThemedText>
@@ -1285,11 +1317,11 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: Colors[colorScheme].borderColor,
-    marginBottom: 15, // Space below panel
+    marginBottom: 15,
   },
   topPanelInactive: {
     backgroundColor: Colors[colorScheme].secondaryBackground,
@@ -1299,14 +1331,14 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     backgroundColor: Colors[colorScheme].secondaryBackground,
   },
   timerText: { 
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '600',
-    color: Colors[colorScheme].danger, // Red timer text on active
+    color: Colors[colorScheme].danger,
   },
   panelActionText: { 
-    fontSize: 16, 
+    fontSize: 20, 
     fontWeight: 'bold',
-    // Color will be applied inline in the component
+    color: Colors[colorScheme].tint,
   },
   singleSetInput: { // Style for bodyweight reps input
     flex: 2.2, // Take up space of Reps and Weight
@@ -1320,6 +1352,11 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     gap: 10,
   },
   resetButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  cancelWorkoutButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: Colors[colorScheme].secondaryBackground,
@@ -1363,14 +1400,14 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   cancelButton: {
     backgroundColor: Colors[colorScheme].secondaryBackground,
   },
-  finishButton: {
+  confirmButton: {
     backgroundColor: Colors[colorScheme].danger,
   },
   cancelButtonText: {
     color: Colors[colorScheme].text,
     fontWeight: '600',
   },
-  finishButtonText: {
+  confirmButtonText: {
     color: 'white',
     fontWeight: '600',
   },
@@ -1413,7 +1450,7 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     color: colorScheme === 'dark' ? Colors.dark.buttonTextPrimary : Colors.light.buttonTextPrimary,
     fontWeight: 'bold',
   },
-  modalButtonContainer: {
+  modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 30,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { InventoryGrid } from '@/components/InventoryGrid';
@@ -31,8 +31,6 @@ export default function InventoryScreen() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [userGold, setUserGold] = useState(0);
 
   useEffect(() => {
@@ -91,11 +89,6 @@ export default function InventoryScreen() {
     }
   };
 
-  const handleItemPress = (item: Item) => {
-    setSelectedItem(item);
-    setIsModalVisible(true);
-  };
-
   const handleEquipItem = async (item: Item) => {
     if (!user || !item.is_owned) return;
 
@@ -121,18 +114,30 @@ export default function InventoryScreen() {
       if (equipError) throw equipError;
 
       fetchItems();
-      setIsModalVisible(false);
     } catch (error) {
       console.error('Error equipping item:', error);
     }
   };
 
   const handlePurchaseItem = async (item: Item) => {
-    if (!user || item.is_owned || userGold < item.price) return;
-
+    if (!user) return;
+  
     try {
-      // Start a transaction
-      const { error: purchaseError } = await supabase
+      // Get user's current gold
+      const { data: userStats, error: statsError } = await supabase
+        .from('user_stats')
+        .select('gold')
+        .eq('user_id', user.id)
+        .single();
+  
+      if (statsError) throw statsError;
+  
+      if (userStats.gold < item.price) {
+        return;
+      }
+
+      // Add item to user's inventory
+      const { error: inventoryError } = await supabase
         .from('user_inventory')
         .insert({
           user_id: user.id,
@@ -140,26 +145,24 @@ export default function InventoryScreen() {
           is_equipped: false
         });
 
-      if (purchaseError) throw purchaseError;
+      if (inventoryError) throw inventoryError;
 
+      // Deduct gold from user
       const { error: goldError } = await supabase
         .from('user_stats')
-        .update({ gold: userGold - item.price })
+        .update({ gold: userStats.gold - item.price })
         .eq('user_id', user.id);
 
       if (goldError) throw goldError;
-
-      // Refresh data
+  
+      // Refresh the UI
       fetchItems();
       fetchUserGold();
-      setIsModalVisible(false);
-      alert(`Purchased ${item.name} for ${item.price} gold!`);
     } catch (error) {
       console.error('Error purchasing item:', error);
-      alert('Failed to purchase item');
     }
   };
-
+  
   const handlePurchaseCapsule = async () => {
     if (!user || userGold < 100) return;
 
@@ -214,23 +217,23 @@ export default function InventoryScreen() {
 
   const renderShop = () => {
     return (
-      <View style={styles.tabContent}>
-        <View style={styles.goldContainer}>
+      <View style={styles(colorScheme).tabContent}>
+        <View style={styles(colorScheme).goldContainer}>
           <Ionicons name="cash" size={24} color="#FFD700" />
-          <ThemedText style={styles.goldText}>{userGold}</ThemedText>
+          <ThemedText style={styles(colorScheme).goldText}>{userGold}</ThemedText>
         </View>
         <TouchableOpacity 
-          style={[styles.capsuleButton, userGold < 100 && styles.disabledButton]}
+          style={[styles(colorScheme).capsuleButton, userGold < 100 && styles(colorScheme).disabledButton]}
           onPress={handlePurchaseCapsule}
           disabled={userGold < 100}
         >
           <Ionicons name="gift" size={24} color="#FFD700" />
-          <ThemedText style={styles.capsuleText}>Mystery Capsule (100 gold)</ThemedText>
+          <ThemedText style={styles(colorScheme).capsuleText}>Mystery Capsule (100 gold)</ThemedText>
         </TouchableOpacity>
-        <ThemedText style={styles.sectionTitle}>Available Items</ThemedText>
+        <ThemedText style={styles(colorScheme).sectionTitle}>Available Items</ThemedText>
         <InventoryGrid
           items={items.filter(item => !item.is_owned)}
-          onItemPress={handleItemPress}
+          onItemPress={handlePurchaseItem}
           onEquipItem={handleEquipItem}
           userGold={userGold}
         />
@@ -244,18 +247,18 @@ export default function InventoryScreen() {
         return renderShop();
       case 'achievements':
         return (
-          <View style={styles.tabContent}>
-            <ThemedText style={styles.sectionTitle}>Achievements</ThemedText>
+          <View style={styles(colorScheme).tabContent}>
+            <ThemedText style={styles(colorScheme).sectionTitle}>Achievements</ThemedText>
             <ThemedText>Coming soon!</ThemedText>
           </View>
         );
       case 'items':
         return (
-          <View style={styles.tabContent}>
-            <ThemedText style={styles.sectionTitle}>Your Items</ThemedText>
+          <View style={styles(colorScheme).tabContent}>
+            <ThemedText style={styles(colorScheme).sectionTitle}>Your Items</ThemedText>
             <InventoryGrid
               items={items.filter(item => item.is_owned)}
-              onItemPress={handleItemPress}
+              onItemPress={handleEquipItem}
               onEquipItem={handleEquipItem}
               userGold={userGold}
             />
@@ -264,99 +267,39 @@ export default function InventoryScreen() {
     }
   };
 
-  const renderModalContent = () => {
-    if (!selectedItem) return null;
-
-    return (
-      <View style={styles.modalContent}>
-        <View style={styles.modalHeader}>
-          <ThemedText style={styles.modalTitle}>{selectedItem.name}</ThemedText>
-          <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-            <Ionicons name="close" size={24} color={Colors[colorScheme].text} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.itemDetails}>
-          <ThemedText style={styles.detailText}>Slot: {selectedItem.slot_type}</ThemedText>
-          <ThemedText style={styles.detailText}>Rarity: {selectedItem.rarity}</ThemedText>
-          <ThemedText style={styles.detailText}>Effect: {selectedItem.effect}</ThemedText>
-          {!selectedItem.is_owned && (
-            <ThemedText style={styles.detailText}>Price: {selectedItem.price} gold</ThemedText>
-          )}
-        </View>
-        {selectedItem.is_owned ? (
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              selectedItem.is_equipped && styles.equippedButton
-            ]}
-            onPress={() => handleEquipItem(selectedItem)}
-          >
-            <ThemedText style={styles.actionButtonText}>
-              {selectedItem.is_equipped ? 'Equipped' : 'Equip'}
-            </ThemedText>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              userGold < selectedItem.price && styles.disabledButton
-            ]}
-            onPress={() => handlePurchaseItem(selectedItem)}
-            disabled={userGold < selectedItem.price}
-          >
-            <ThemedText style={styles.actionButtonText}>
-              {userGold < selectedItem.price ? 'Not Enough Gold' : 'Purchase'}
-            </ThemedText>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
   return (
-    <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.tabBar}>
+    <ThemedView style={[styles(colorScheme).container, { paddingTop: insets.top }]}>
+      <View style={styles(colorScheme).tabBar}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'shop' && styles.activeTab]}
+          style={[styles(colorScheme).tab, activeTab === 'shop' && styles(colorScheme).activeTab]}
           onPress={() => setActiveTab('shop')}
         >
           <Ionicons name="cart" size={24} color={activeTab === 'shop' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
-          <ThemedText style={[styles.tabText, activeTab === 'shop' && styles.activeTabText]}>Shop</ThemedText>
+          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'shop' && styles(colorScheme).activeTabText]}>Shop</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'achievements' && styles.activeTab]}
+          style={[styles(colorScheme).tab, activeTab === 'achievements' && styles(colorScheme).activeTab]}
           onPress={() => setActiveTab('achievements')}
         >
           <Ionicons name="trophy" size={24} color={activeTab === 'achievements' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
-          <ThemedText style={[styles.tabText, activeTab === 'achievements' && styles.activeTabText]}>Achievements</ThemedText>
+          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'achievements' && styles(colorScheme).activeTabText]}>Achievements</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'items' && styles.activeTab]}
+          style={[styles(colorScheme).tab, activeTab === 'items' && styles(colorScheme).activeTab]}
           onPress={() => setActiveTab('items')}
         >
           <Ionicons name="bag" size={24} color={activeTab === 'items' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
-          <ThemedText style={[styles.tabText, activeTab === 'items' && styles.activeTabText]}>Items</ThemedText>
+          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'items' && styles(colorScheme).activeTabText]}>Items</ThemedText>
         </TouchableOpacity>
       </View>
-      <View style={styles.content}>
+      <View style={styles(colorScheme).content}>
         {renderContent()}
       </View>
-
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          {renderModalContent()}
-        </View>
-      </Modal>
     </ThemedView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -373,14 +316,14 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: Colors.light.tint,
+    borderBottomColor: Colors[colorScheme].tint,
   },
   tabText: {
     marginTop: 4,
     fontSize: 12,
   },
   activeTabText: {
-    color: Colors.light.tint,
+    color: Colors[colorScheme].tint,
     fontWeight: '600',
   },
   content: {
@@ -408,53 +351,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    width: '80%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  itemDetails: {
-    marginBottom: 20,
-  },
-  detailText: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  actionButton: {
-    backgroundColor: '#4CAF50',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  equippedButton: {
-    backgroundColor: '#666',
-  },
-  disabledButton: {
-    backgroundColor: '#999',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   capsuleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -467,5 +363,8 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 }); 

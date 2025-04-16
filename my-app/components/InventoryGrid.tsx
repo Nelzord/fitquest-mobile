@@ -5,7 +5,7 @@ import { ThemedText } from './ThemedText';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
-import { ItemPopup } from './ItemPopup';
+import { PurchaseModal } from './PurchaseModal';
 
 interface Item {
   id: string;
@@ -45,7 +45,6 @@ const rarityGlowColors = {
 export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress, onEquipItem, userGold }) => {
   const colorScheme = useColorScheme() ?? 'light';
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [showPopup, setShowPopup] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRarity, setSelectedRarity] = useState<string | null>(null);
@@ -81,19 +80,16 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
   };
 
   const handleItemPress = (item: Item) => {
-    setSelectedItem(item);
-    setShowPopup(true);
-  };
-
-  const handleClosePopup = () => {
-    setShowPopup(false);
-  };
-
-  const handleEquip = () => {
-    if (selectedItem) {
-      onEquipItem(selectedItem);
-      setSelectedItem(null);
+    if (item.is_owned) {
+      onItemPress(item);
+    } else {
+      setSelectedItem(item);
     }
+  };
+
+  const handlePurchase = (item: Item) => {
+    setSelectedItem(null);
+    onItemPress(item);
   };
 
   const renderFilterModal = () => {
@@ -152,7 +148,7 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
           { borderColor: rarityColors[item.rarity] },
           { shadowColor: rarityGlowColors[item.rarity] }
         ]}
-        onPress={() => setSelectedItem(item)}
+        onPress={() => handleItemPress(item)}
       >
         <View style={styles.itemImageContainer}>
           {getItemImage(item.image_path) ? (
@@ -184,71 +180,6 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
     );
   };
 
-  const renderModalContent = () => {
-    if (!selectedItem) return null;
-
-    return (
-      <View style={[styles.modalContent, { backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5' }]}>
-        <View style={styles.modalHeader}>
-          <ThemedText style={styles.modalTitle}>{selectedItem.name}</ThemedText>
-          <TouchableOpacity onPress={() => setSelectedItem(null)}>
-            <Ionicons name="close" size={24} color={Colors[colorScheme].text} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.itemDetails}>
-          <ThemedText style={styles.detailText}>Slot: {selectedItem.slot_type}</ThemedText>
-          <ThemedText style={styles.detailText}>Rarity: {selectedItem.rarity}</ThemedText>
-          <ThemedText style={styles.detailText}>Effect: {selectedItem.effect}</ThemedText>
-          {!selectedItem.is_owned && (
-            <ThemedText style={styles.detailText}>Price: {selectedItem.price} gold</ThemedText>
-          )}
-        </View>
-        <View style={styles.modalButtons}>
-          {selectedItem.is_owned ? (
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                selectedItem.is_equipped && styles.equippedButton
-              ]}
-              onPress={() => {
-                onEquipItem(selectedItem);
-                setSelectedItem(null);
-              }}
-            >
-              <ThemedText style={styles.actionButtonText}>
-                {selectedItem.is_equipped ? 'Equipped' : 'Equip'}
-              </ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                userGold < selectedItem.price && styles.disabledButton
-              ]}
-              onPress={() => {
-                if (userGold >= selectedItem.price) {
-                  onItemPress(selectedItem);
-                }
-                setSelectedItem(null);
-              }}
-              disabled={userGold < selectedItem.price}
-            >
-              <ThemedText style={styles.actionButtonText}>
-                {userGold < selectedItem.price ? 'Not Enough Gold' : 'Purchase'}
-              </ThemedText>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setSelectedItem(null)}
-          >
-            <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -266,22 +197,12 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
         numColumns={3}
         contentContainerStyle={styles.grid}
       />
-      {showPopup && selectedItem && (
-        <ItemPopup
-          item={selectedItem}
-          onClose={handleClosePopup}
-        />
-      )}
-      <Modal
-        visible={!!selectedItem && !showPopup}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setSelectedItem(null)}
-      >
-        <View style={styles.modalContainer}>
-          {renderModalContent()}
-        </View>
-      </Modal>
+      <PurchaseModal
+        item={selectedItem}
+        userGold={userGold}
+        onClose={() => setSelectedItem(null)}
+        onPurchase={handlePurchase}
+      />
       {renderFilterModal()}
     </View>
   );
@@ -419,50 +340,5 @@ const styles = StyleSheet.create({
   rarityOptionText: {
     fontSize: 12,
     fontWeight: '500',
-  },
-  itemDetails: {
-    marginBottom: 16,
-  },
-  detailText: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  actionButton: {
-    backgroundColor: '#4CAF50',
-    padding: 12,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  equippedButton: {
-    backgroundColor: '#2E8B57',
-  },
-  disabledButton: {
-    backgroundColor: '#666',
-  },
-  cancelButton: {
-    backgroundColor: '#666',
-    padding: 12,
-    borderRadius: 8,
-    flex: 1,
-    marginLeft: 8,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
 }); 
