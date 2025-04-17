@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Avatar } from '@/components/Avatar';
 import { MuscleGroupRadialChart } from '@/components/MuscleGroupRadialChart';
 import { Ionicons } from '@expo/vector-icons';
+import { EquippedItems } from '@/components/EquippedItems';
 
 interface UserStats {
   user_id: string;
@@ -40,6 +41,18 @@ interface UserStats {
   };
 }
 
+interface Item {
+  id: number;
+  name: string;
+  slot_type: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  effect: string;
+  image_path: string;
+  is_owned: boolean;
+  is_equipped: boolean;
+  price: number;
+}
+
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const insets = useSafeAreaInsets();
@@ -47,14 +60,41 @@ export default function ProfileScreen() {
   const { logout, isGuest, user } = useAuth();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<Item[]>([]);
 
-  useEffect(() => {
-    if (user) {
-      fetchUserStats();
+  const fetchItems = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data: allItems, error: itemsError } = await supabase
+        .from('items')
+        .select('*');
+
+      if (itemsError) throw itemsError;
+
+      const { data: userInventory, error: inventoryError } = await supabase
+        .from('user_inventory')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (inventoryError) throw inventoryError;
+
+      const combinedItems = allItems.map((item: Item) => {
+        const inventoryItem = userInventory.find((ui: { item_id: number }) => ui.item_id === item.id);
+        return {
+          ...item,
+          is_owned: !!inventoryItem,
+          is_equipped: inventoryItem?.is_equipped || false
+        };
+      });
+
+      setItems(combinedItems);
+    } catch (error) {
+      console.error('Error fetching items:', error);
     }
   }, [user]);
 
-  const fetchUserStats = async () => {
+  const fetchUserStats = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('user_stats')
@@ -69,7 +109,22 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserStats();
+      fetchItems();
+    }
+  }, [user, fetchUserStats, fetchItems]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        fetchItems();
+      }
+    }, [user, fetchItems])
+  );
 
   const calculateRequiredXP = (level: number) => {
     return Math.floor(100 * Math.pow(level, 1.5));
@@ -125,10 +180,13 @@ export default function ProfileScreen() {
       </ThemedView>
 
       <ThemedView style={styles.avatarSection}>
-        <Avatar 
-          size={300}
-          style={styles.avatar}
-        />
+        <View style={styles.avatarContainer}>
+          <EquippedItems items={items} style={styles.equippedItems} />
+          <Avatar 
+            size={300}
+            style={styles.avatar}
+          />
+        </View>
       </ThemedView>
 
       <ThemedView style={styles.statsCard}>
@@ -319,5 +377,18 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: 300,
+    height: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  equippedItems: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    zIndex: 1,
   },
 }); 

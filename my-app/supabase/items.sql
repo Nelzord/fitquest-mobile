@@ -89,7 +89,7 @@ INSERT INTO items (
 ),
 (
     'Power Gauntlets',
-    'accessory',
+    'hands',
     'epic',
     'Gain 15% XP from arm exercises and +10% gold earned',
     '{"muscle_group": "arms", "bonus": 15}'::JSONB,
@@ -123,15 +123,3 @@ INSERT INTO items (
     NOW(), NOW(), 400
 );
 
--- Insert items
-INSERT INTO items (id, name, slot_type, rarity, effect, image_path, price) VALUES
-  ('cowboy_hat', 'Cowboy Hat', 'head', 'uncommon', 'Gain 5% more XP from workouts', 'cowboy_hat.png', 200),
-  ('weightlifting_belt', 'Weightlifting Belt', 'waist', 'common', 'Increase max weight by 5%', 'weightlifting_belt.png', 150),
-  ('power_gloves', 'Power Gloves', 'hands', 'rare', 'Increase grip strength by 10%', 'power_gloves.png', 300),
-  ('running_shoes', 'Running Shoes', 'feet', 'common', 'Increase running speed by 5%', 'running_shoes.png', 150),
-  ('energy_drink', 'Energy Drink', 'consumable', 'uncommon', 'Restore 20% energy', 'energy_drink.png', 100),
-  ('protein_shake', 'Protein Shake', 'consumable', 'common', 'Increase muscle growth by 5%', 'protein_shake.png', 80),
-  ('wrist_wraps', 'Wrist Wraps', 'wrists', 'common', 'Reduce wrist fatigue by 10%', 'wrist_wraps.png', 120),
-  ('knee_sleeves', 'Knee Sleeves', 'knees', 'uncommon', 'Reduce knee stress by 15%', 'knee_sleeves.png', 180),
-  ('compression_shirt', 'Compression Shirt', 'chest', 'common', 'Improve blood flow by 5%', 'compression_shirt.png', 100),
-  ('gym_bag', 'Gym Bag', 'accessory', 'rare', 'Carry 2 more items', 'gym_bag.png', 250);
