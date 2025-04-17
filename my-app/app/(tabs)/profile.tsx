@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -10,6 +10,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Avatar } from '@/components/Avatar';
+import { MuscleGroupRadialChart } from '@/components/MuscleGroupRadialChart';
+import { Ionicons } from '@expo/vector-icons';
 
 interface UserStats {
   user_id: string;
@@ -24,6 +26,18 @@ interface UserStats {
   core_xp: number;
   cardio_xp: number;
   last_updated: string;
+  total_workouts: number;
+  total_exercises: number;
+  total_sets: number;
+  total_reps: number;
+  total_weight: number;
+  total_duration: number;
+  muscle_groups: {
+    [key: string]: {
+      xp: number;
+      level: number;
+    };
+  };
 }
 
 export default function ProfileScreen() {
@@ -86,7 +100,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView 
       style={[styles.container, { paddingTop: insets.top }]}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={[styles.contentContainer, { paddingBottom: 100 }]}
     >
       <ThemedView style={styles.header}>
         <View style={styles.profileInfo}>
@@ -141,43 +155,17 @@ export default function ProfileScreen() {
 
       <ThemedView style={styles.statsCard}>
         <ThemedText style={styles.sectionTitle}>Muscle Group Progress</ThemedText>
-        <View style={styles.muscleGroupContainer}>
-          <MuscleGroupItem 
-            name="Chest" 
-            xp={userStats?.chest_xp || 0} 
-            icon="figure.arms.open" 
-          />
-          <MuscleGroupItem 
-            name="Back" 
-            xp={userStats?.back_xp || 0} 
-            icon="figure.arms.open" 
-          />
-          <MuscleGroupItem 
-            name="Legs" 
-            xp={userStats?.legs_xp || 0} 
-            icon="figure.walk" 
-          />
-          <MuscleGroupItem 
-            name="Shoulders" 
-            xp={userStats?.shoulders_xp || 0} 
-            icon="figure.arms.open" 
-          />
-          <MuscleGroupItem 
-            name="Arms" 
-            xp={userStats?.arms_xp || 0} 
-            icon="figure.arms.open" 
-          />
-          <MuscleGroupItem 
-            name="Core" 
-            xp={userStats?.core_xp || 0} 
-            icon="figure.core.training" 
-          />
-          <MuscleGroupItem 
-            name="Cardio" 
-            xp={userStats?.cardio_xp || 0} 
-            icon="figure.run" 
-          />
-        </View>
+        <MuscleGroupRadialChart 
+          muscleGroups={[
+            { name: 'Arms', xp: userStats?.arms_xp || 0 },
+            { name: 'Back', xp: userStats?.back_xp || 0 },
+            { name: 'Cardio', xp: userStats?.cardio_xp || 0 },
+            { name: 'Chest', xp: userStats?.chest_xp || 0 },
+            { name: 'Core', xp: userStats?.core_xp || 0 },
+            { name: 'Legs', xp: userStats?.legs_xp || 0 },
+            { name: 'Shoulders', xp: userStats?.shoulders_xp || 0 }
+          ]} 
+        />
       </ThemedView>
 
       <TouchableOpacity 
@@ -189,22 +177,6 @@ export default function ProfileScreen() {
         </ThemedText>
       </TouchableOpacity>
     </ScrollView>
-  );
-}
-
-function MuscleGroupItem({ name, xp, icon }: { name: string; xp: number; icon: string }) {
-  const colorScheme = useColorScheme() ?? 'light';
-  return (
-    <View style={styles.muscleGroupItem}>
-      <View style={styles.muscleGroupHeader}>
-        <IconSymbol name={icon as any} size={20} color={Colors[colorScheme].tint} />
-        <ThemedText style={styles.muscleGroupName}>{name}</ThemedText>
-      </View>
-      <View style={styles.xpContainer}>
-        <IconSymbol name="star.fill" size={16} color={Colors[colorScheme].tint} />
-        <ThemedText style={styles.xpText}>{xp}</ThemedText>
-      </View>
-    </View>
   );
 }
 

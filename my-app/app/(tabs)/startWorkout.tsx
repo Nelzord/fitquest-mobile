@@ -267,7 +267,6 @@ const ExerciseItem = ({
 // Renamed and modified component for the top control panel
 const TopWorkoutControlPanel = ({ 
   time, 
-  onStart,
   onFinish,
   onReset,
   onCancel,
@@ -275,7 +274,6 @@ const TopWorkoutControlPanel = ({
   isSaving
 }: {
   time: number,
-  onStart: () => void,
   onFinish: () => void,
   onReset: () => void,
   onCancel: () => void,
@@ -305,53 +303,44 @@ const TopWorkoutControlPanel = ({
     setShowCancelConfirm(false);
   };
 
+  if (!isWorkoutActive) {
+    return null;
+  }
+
   return (
     <>
       <View style={[
         styles.topPanelContainer,
-        isWorkoutActive ? styles.topPanelActive : styles.topPanelInactive 
+        styles.topPanelActive
       ]}>
-        {isWorkoutActive ? (
-          <>
-            <View style={styles.timerContainer}>
-              <ThemedText style={styles.timerText}>{formatTime(time)}</ThemedText>
-              <TouchableOpacity 
-                style={styles.resetButton}
-                onPress={onReset}
-              >
-                <IconSymbol name="arrow.clockwise" size={16} color={Colors[colorScheme].tint} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.cancelWorkoutButton}
-                onPress={handleCancelPress}
-              >
-                <IconSymbol name="xmark" size={16} color={Colors[colorScheme].danger} />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity 
-              onPress={onFinish}
-              activeOpacity={0.7}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <ActivityIndicator color={Colors[colorScheme].danger} />
-              ) : (
-                <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].danger }]}>
-                  Finish Workout
-                </ThemedText>
-              )}
-            </TouchableOpacity>
-          </>
-        ) : (
+        <View style={styles.timerContainer}>
+          <ThemedText style={styles.timerText}>{formatTime(time)}</ThemedText>
           <TouchableOpacity 
-            onPress={onStart}
-            activeOpacity={0.7}
+            style={styles.resetButton}
+            onPress={onReset}
           >
-            <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].tint }]}>
-              Start Workout
-            </ThemedText>
+            <IconSymbol name="arrow.clockwise" size={16} color={Colors[colorScheme].tint} />
           </TouchableOpacity>
-        )}
+          <TouchableOpacity 
+            style={styles.cancelWorkoutButton}
+            onPress={handleCancelPress}
+          >
+            <IconSymbol name="xmark" size={16} color={Colors[colorScheme].danger} />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity 
+          onPress={onFinish}
+          activeOpacity={0.7}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <ActivityIndicator color={Colors[colorScheme].danger} />
+          ) : (
+            <ThemedText style={[styles.panelActionText, { color: Colors[colorScheme].danger }]}>
+              Finish Workout
+            </ThemedText>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Cancel Confirmation Modal */}
@@ -620,7 +609,7 @@ export default function StartWorkoutScreen() {
     if (isWorkoutActive) {
       intervalRef.current = setInterval(() => {
         setTime((prevTime) => prevTime + 1);
-      }, 1000);
+      }, 1000) as unknown as NodeJS.Timeout;
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -905,10 +894,8 @@ export default function StartWorkoutScreen() {
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ThemedView style={[styles.mainContentContainer, { paddingTop: insets.top }]}>
-          {/* Render Top Control Panel with new props */}
           <TopWorkoutControlPanel 
             time={time} 
-            onStart={startWorkout} 
             onFinish={finishWorkout}
             onReset={resetTimer}
             onCancel={handleCancelWorkout}
@@ -916,43 +903,60 @@ export default function StartWorkoutScreen() {
             isSaving={isSaving}
           />
 
-          <ScrollView 
-            contentContainerStyle={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <FlatList
-              data={filterWorkouts(exercises)}
-              renderItem={({ item }) => (
-                <ExerciseItem 
-                  item={item} 
-                  onUpdateName={updateExerciseName} 
-                  onAddSet={addSet}
-                  onUpdateSet={updateSet}
-                  onRemoveSet={removeSet}
-                  onRemoveExercise={removeExercise}
+          {!isWorkoutActive ? (
+            <View style={styles.startButtonContainer}>
+              <TouchableOpacity 
+                style={styles.startButton}
+                onPress={startWorkout}
+                activeOpacity={0.7}
+              >
+                <ThemedText style={styles.startButtonText}>Start Workout</ThemedText>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <ScrollView 
+              contentContainerStyle={styles.scrollContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <FlatList
+                data={filterWorkouts(exercises)}
+                renderItem={({ item }) => (
+                  <ExerciseItem 
+                    item={item} 
+                    onUpdateName={updateExerciseName} 
+                    onAddSet={addSet}
+                    onUpdateSet={updateSet}
+                    onRemoveSet={removeSet}
+                    onRemoveExercise={removeExercise}
+                  />
+                )}
+                keyExtractor={(item, index) => item.id + index}
+                style={styles.exerciseList}
+                scrollEnabled={false}
+                ListFooterComponent={() => {
+                  if (!isWorkoutActive) return null;
+                  return (
+                    <TouchableOpacity style={styles.addButton} onPress={addExercise}>
+                      <IconSymbol name="plus.circle.fill" size={20} color={Colors[colorScheme].tint} />
+                      <ThemedText style={styles.addButtonText}> Add Exercise</ThemedText>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+
+              {isWorkoutActive && (
+                <TextInput
+                  style={styles.notesInput}
+                  placeholder="Workout Notes (Optional)"
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  placeholderTextColor={Colors[colorScheme].placeholderText}
                 />
               )}
-              keyExtractor={(item, index) => item.id + index}
-              style={styles.exerciseList}
-              scrollEnabled={false}
-              ListFooterComponent={
-                <TouchableOpacity style={styles.addButton} onPress={addExercise}>
-                  <IconSymbol name="plus.circle.fill" size={20} color={Colors[colorScheme].tint} />
-                  <ThemedText style={styles.addButtonText}> Add Exercise</ThemedText>
-                </TouchableOpacity>
-              }
-            />
-
-            <TextInput
-              style={styles.notesInput}
-              placeholder="Workout Notes (Optional)"
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              placeholderTextColor={Colors[colorScheme].placeholderText}
-            />
-          </ScrollView>
+            </ScrollView>
+          )}
         </ThemedView>
       </TouchableWithoutFeedback>
 
@@ -1470,5 +1474,28 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     color: colorScheme === 'dark' ? Colors.dark.buttonTextPrimary : Colors.light.buttonTextPrimary,
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  startButtonContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors[colorScheme].tint,
+    marginBottom: 25,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  startButtonText: {
+    color: Colors[colorScheme].tint,
+    marginLeft: 12,
+    fontWeight: 'bold',
+    fontSize: 20,
   },
 }); 

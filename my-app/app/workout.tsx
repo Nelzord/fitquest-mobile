@@ -171,25 +171,25 @@ export default function WorkoutDetailScreen() {
                       {exercise.type === 'standard' && (
                         <>
                           <ThemedText style={styles.setDetail}>
-                            {set.reps} reps
+                            {set.reps || '0'} reps
                           </ThemedText>
                           <ThemedText style={styles.setDetail}>
-                            {set.weight} kg
+                            {set.weight || '0'} kg
                           </ThemedText>
                         </>
                       )}
                       {exercise.type === 'bodyweight' && (
                         <ThemedText style={styles.setDetail}>
-                          {set.reps} reps
+                          {set.reps || '0'} reps
                         </ThemedText>
                       )}
                       {exercise.type === 'timed' && (
                         <>
                           <ThemedText style={styles.setDetail}>
-                            {set.duration}
+                            {set.duration || '0:00'}
                           </ThemedText>
                           <ThemedText style={styles.setDetail}>
-                            {set.distance} m
+                            {set.distance || '0'} m
                           </ThemedText>
                         </>
                       )}

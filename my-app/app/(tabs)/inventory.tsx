@@ -74,8 +74,8 @@ export default function InventoryScreen() {
 
       if (inventoryError) throw inventoryError;
 
-      const combinedItems = allItems.map(item => {
-        const inventoryItem = userInventory.find(ui => ui.item_id === item.id);
+      const combinedItems = allItems.map((item: Item) => {
+        const inventoryItem = userInventory.find((ui: { item_id: string }) => ui.item_id === item.id);
         return {
           ...item,
           is_owned: !!inventoryItem,
@@ -175,7 +175,7 @@ export default function InventoryScreen() {
       if (itemsError) throw itemsError;
 
       // Filter out items the user already owns
-      const availableItems = allItems.filter(item => 
+      const availableItems = allItems.filter((item: Item) => 
         !items.some(ownedItem => ownedItem.id === item.id)
       );
 
