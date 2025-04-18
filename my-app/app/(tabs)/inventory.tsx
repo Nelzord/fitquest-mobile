@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { InventoryGrid } from '@/components/InventoryGrid';
@@ -219,7 +219,11 @@ export default function InventoryScreen() {
     return (
       <View style={styles(colorScheme).tabContent}>
         <View style={styles(colorScheme).goldContainer}>
-          <Ionicons name="cash" size={24} color="#FFD700" />
+          <Image 
+            source={require('@/assets/images/logos/goldcoin.png')} 
+            style={styles(colorScheme).goldIcon}
+            resizeMode="contain"
+          />
           <ThemedText style={styles(colorScheme).goldText}>{userGold}</ThemedText>
         </View>
         <TouchableOpacity 
@@ -366,5 +370,10 @@ const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  goldIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 8,
   },
 }); 

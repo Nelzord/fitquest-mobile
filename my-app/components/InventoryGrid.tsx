@@ -172,7 +172,12 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
             style={styles.buyButton}
             onPress={() => setSelectedItem(item)}
           >
-            <ThemedText style={styles.buyButtonText}>{item.price} gold</ThemedText>
+            <Image 
+              source={require('@/assets/images/logos/goldcoin.png')} 
+              style={styles.priceIcon}
+              resizeMode="contain"
+            />
+            <ThemedText style={styles.buyButtonText}>{item.price}</ThemedText>
           </TouchableOpacity>
         )}
       </TouchableOpacity>
@@ -339,5 +344,10 @@ const styles = StyleSheet.create({
   rarityOptionText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  priceIcon: {
+    width: 12,
+    height: 12,
+    marginRight: 2,
   },
 }); 

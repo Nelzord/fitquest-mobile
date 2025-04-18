@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Modal, Animated, Easing, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Modal, Animated, Easing, TouchableOpacity, Image } from 'react-native';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 import { Colors } from '@/constants/Colors';
@@ -71,16 +71,43 @@ export function WorkoutCompletionModal({ visible, onClose, stats }: WorkoutCompl
             <StatRow label="Total Sets" value={stats.totalSets} />
             <StatRow label="Total Reps" value={stats.totalReps} />
             <StatRow label="Total Volume" value={stats.totalVolume} />
-            <StatRow label="XP Gained" value={stats.xpGain} icon="star" />
-            <StatRow label="Gold Gained" value={stats.goldGain} icon="coin" />
+            <View style={styles.statRow}>
+              <View style={styles.statLabelContainer}>
+                <Image 
+                  source={require('@/assets/images/logos/xp.png')} 
+                  style={styles.currencyIcon}
+                  resizeMode="contain"
+                />
+                <ThemedText style={styles.statLabel}>XP Gained</ThemedText>
+              </View>
+              <ThemedText style={styles.statValue}>{stats.xpGain}</ThemedText>
+            </View>
+            <View style={styles.statRow}>
+              <View style={styles.statLabelContainer}>
+                <Image 
+                  source={require('@/assets/images/logos/goldcoin.png')} 
+                  style={styles.currencyIcon}
+                  resizeMode="contain"
+                />
+                <ThemedText style={styles.statLabel}>Gold Gained</ThemedText>
+              </View>
+              <ThemedText style={styles.statValue}>{stats.goldGain}</ThemedText>
+            </View>
           </View>
 
           <View style={styles.levelContainer}>
             <View style={styles.levelHeader}>
               <ThemedText style={styles.levelText}>Level {stats.currentLevel}</ThemedText>
-              <ThemedText style={styles.xpText}>
-                {stats.currentXP} / {stats.requiredXP} XP
-              </ThemedText>
+              <View style={styles.xpContainer}>
+                <ThemedText style={styles.xpText}>
+                  {stats.currentXP}/{stats.requiredXP}
+                </ThemedText>
+                <Image 
+                  source={require('@/assets/images/logos/xp.png')} 
+                  style={styles.xpIcon}
+                  resizeMode="contain"
+                />
+              </View>
             </View>
             <View style={styles.progressBarContainer}>
               <Animated.View
@@ -123,12 +150,11 @@ export function WorkoutCompletionModal({ visible, onClose, stats }: WorkoutCompl
   );
 }
 
-function StatRow({ label, value, icon }: { label: string; value: number; icon?: string }) {
+function StatRow({ label, value }: { label: string; value: number }) {
   const colorScheme = useColorScheme() ?? 'light';
   return (
     <View style={styles.statRow}>
       <View style={styles.statLabelContainer}>
-        {icon && <IconSymbol name={icon} size={16} color={Colors[colorScheme].tint} />}
         <ThemedText style={styles.statLabel}>{label}</ThemedText>
       </View>
       <ThemedText style={styles.statValue}>{value}</ThemedText>
@@ -197,6 +223,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  xpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  xpIcon: {
+    width: 16,
+    height: 16,
+    marginLeft: 4,
+  },
   xpText: {
     fontSize: 16,
   },
@@ -233,5 +268,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  currencyIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
   },
 }); 

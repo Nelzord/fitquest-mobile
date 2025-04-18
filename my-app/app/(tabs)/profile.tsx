@@ -164,15 +164,23 @@ export default function ProfileScreen() {
           
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <IconSymbol name="star.fill" size={16} color={Colors[colorScheme].tint} />
+              <Image 
+                source={require('@/assets/images/logos/xp.png')} 
+                style={styles.currencyIcon}
+                resizeMode="contain"
+              />
               <ThemedText style={styles.statText}>
-                {userStats?.xp || 0} XP
+                {userStats?.xp || 0}
               </ThemedText>
             </View>
             <View style={styles.statItem}>
-              <IconSymbol name="dollarsign.circle.fill" size={16} color={Colors[colorScheme].tint} />
+              <Image 
+                source={require('@/assets/images/logos/goldcoin.png')} 
+                style={styles.currencyIcon}
+                resizeMode="contain"
+              />
               <ThemedText style={styles.statText}>
-                {userStats?.gold || 0} Gold
+                {userStats?.gold || 0}
               </ThemedText>
             </View>
           </View>
@@ -191,11 +199,16 @@ export default function ProfileScreen() {
 
       <ThemedView style={styles.statsCard}>
         <View style={styles.levelContainer}>
-          <ThemedText style={styles.levelText}>Level {userStats?.level || 1}</ThemedText>
+          <ThemedText style={styles.levelText}>Level {userStats?.level || 0}</ThemedText>
           <View style={styles.xpContainer}>
             <ThemedText style={styles.xpText}>
-              {userStats?.xp || 0} / {calculateRequiredXP(userStats?.level || 1)} XP
+              {userStats?.xp || 0}/{calculateRequiredXP(userStats?.level || 1)}
             </ThemedText>
+            <Image 
+              source={require('@/assets/images/logos/xp.png')} 
+              style={styles.xpIcon}
+              resizeMode="contain"
+            />
           </View>
         </View>
         <View style={styles.progressBarContainer}>
@@ -280,10 +293,16 @@ const styles = StyleSheet.create({
   xpContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 4,
+  },
+  xpIcon: {
+    width: 16,
+    height: 16,
+    marginRight: 4,
   },
   xpText: {
-    marginLeft: 4,
-    fontSize: 16,
+    fontSize: 14,
+    opacity: 0.8,
   },
   progressBarContainer: {
     height: 8,
@@ -390,5 +409,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     zIndex: 1,
+  },
+  currencyIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 4,
   },
 }); 

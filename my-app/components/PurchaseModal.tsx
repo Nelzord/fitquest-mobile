@@ -111,7 +111,11 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ item, userGold, on
             <View style={styles.detailRow}>
               <ThemedText style={styles.detailLabel}>Price:</ThemedText>
               <View style={styles.priceContainer}>
-                <Ionicons name="cash" size={20} color="#FFD700" />
+                <Image 
+                  source={require('@/assets/images/logos/goldcoin.png')} 
+                  style={styles.priceIcon}
+                  resizeMode="contain"
+                />
                 <ThemedText style={styles.priceText}>{item.price}</ThemedText>
               </View>
             </View>
@@ -224,10 +228,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  priceIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 4,
+  },
   priceText: {
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 4,
   },
   buttonContainer: {
     gap: 12,
