@@ -38,13 +38,13 @@ INSERT INTO items (
     NOW(), NOW(), 200
 ),
 (
-    'Leather Gloves',
+    'Iron Sword',
     'accessory',
     'uncommon',
     'Gain 10% more XP from arm exercises',
     '{"muscle_group": "arms", "bonus": 10}'::JSONB,
     0, 0, 2,
-    'leather_gloves.png',
+    'iron_sword.png',
     NOW(), NOW(), 100
 );
 
@@ -53,23 +53,23 @@ INSERT INTO items (
     name, slot_type, rarity, effect, xp_bonus, gold_bonus, luck_bonus, power_bonus, image_path, created_at, updated_at, price
 ) VALUES 
 (
-    'Weighted Vest',
+    'Cowboy Vest',
     'chest',
     'rare',
     'Gain 15% more XP from core exercises',
     '{"muscle_group": "core", "bonus": 15}'::JSONB,
     0, 0, 4,
-    'weighted_vest.png',
+    'cowboy_vest.png',
     NOW(), NOW(), 300
 ),
 (
-    'Trail Boots',
+    'Cowboy Boots',
     'feet',
     'rare',
     'Gain 10% more XP from leg exercises and +5% gold earned',
     '{"muscle_group": "legs", "bonus": 10}'::JSONB,
     5, 0, 3,
-    'trail_boots.png',
+    'cowboy_boots.png',
     NOW(), NOW(), 200
 );
 
@@ -78,24 +78,14 @@ INSERT INTO items (
     name, slot_type, rarity, effect, xp_bonus, gold_bonus, luck_bonus, power_bonus, image_path, created_at, updated_at, price
 ) VALUES 
 (
-    'Champion Headband',
+    'Rice Hat',
     'head',
     'epic',
     'Gain 10% XP from all exercises and +10 power',
     '{"muscle_group": "all", "bonus": 10}'::JSONB,
     0, 0, 10,
-    'champion_headband.png',
+    'rice_hat.png',
     NOW(), NOW(), 400
-),
-(
-    'Power Gauntlets',
-    'hands',
-    'epic',
-    'Gain 15% XP from arm exercises and +10% gold earned',
-    '{"muscle_group": "arms", "bonus": 15}'::JSONB,
-    10, 0, 8,
-    'power_gauntlets.png',
-    NOW(), NOW(), 300
 );
 
 -- Legendary Items

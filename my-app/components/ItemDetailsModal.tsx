@@ -3,6 +3,7 @@ import { View, Modal, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { ThemedText } from './ThemedText';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getItemImage } from './EquippedItems';
 
 interface Item {
   id: string;
@@ -56,7 +57,7 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClos
 
           <View style={styles.itemImageContainer}>
             <Image
-              source={require('@/assets/images/items/cowboy_hat.png')}
+              source={getItemImage(item.image_path)}
               style={styles.itemImage}
               resizeMode="contain"
             />

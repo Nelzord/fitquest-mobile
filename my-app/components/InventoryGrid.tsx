@@ -64,11 +64,10 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
         'sweatband.png': require('../assets/images/items/sweatband.png'),
         'basic_sneakers.png': require('../assets/images/items/basic_sneakers.png'),
         'cowboy_hat.png': require('../assets/images/items/cowboy_hat.png'),
-        'leather_gloves.png': require('../assets/images/items/leather_gloves.png'),
-        'weighted_vest.png': require('../assets/images/items/weighted_vest.png'),
-        'trail_boots.png': require('../assets/images/items/trail_boots.png'),
-        'champion_headband.png': require('../assets/images/items/champion_headband.png'),
-        'power_gauntlets.png': require('../assets/images/items/power_gauntlets.png'),
+        'cowboy_vest.png': require('../assets/images/items/cowboy_vest.png'),
+        'cowboy_boots.png': require('../assets/images/items/cowboy_boots.png'),
+        'rice_hat.png': require('../assets/images/items/rice_hat.png'),
+        'iron_sword.png': require('../assets/images/items/iron_sword.png'),
         'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
         'golden_crown.png': require('../assets/images/items/golden_crown.png')
       };

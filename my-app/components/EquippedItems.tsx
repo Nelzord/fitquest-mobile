@@ -23,7 +23,7 @@ interface EquippedItemsProps {
 // Positions for the slots on top of the avatar
 const slotPositions = {
   head: { top: -20, left: '50%', transform: [{ translateX: -40 }] } as ViewStyle,
-  chest: { top: 90, left: '50%', transform: [{ translateX: -40 }] } as ViewStyle,
+  chest: { top: 80, left: '50%', transform: [{ translateX: -40 }] } as ViewStyle,
   hands_left: { top: 110, left: '5%' } as ViewStyle,
   hands_right: { top: 110, right: '5%' } as ViewStyle,
   feet_left: { bottom: 0, left: '20%' } as ViewStyle,
@@ -32,17 +32,16 @@ const slotPositions = {
 };
 
 // Helper to load images
-const getItemImage = (imagePath: string) => {
+export const getItemImage = (imagePath: string) => {
   try {
     const images: { [key: string]: any } = {
       'sweatband.png': require('../assets/images/items/sweatband.png'),
       'basic_sneakers.png': require('../assets/images/items/basic_sneakers.png'),
       'cowboy_hat.png': require('../assets/images/items/cowboy_hat.png'),
-      'leather_gloves.png': require('../assets/images/items/leather_gloves.png'),
-      'weighted_vest.png': require('../assets/images/items/weighted_vest.png'),
-      'trail_boots.png': require('../assets/images/items/trail_boots.png'),
-      'champion_headband.png': require('../assets/images/items/champion_headband.png'),
-      'power_gauntlets.png': require('../assets/images/items/power_gauntlets.png'),
+      'cowboy_vest.png': require('../assets/images/items/cowboy_vest.png'),
+      'cowboy_boots.png': require('../assets/images/items/cowboy_boots.png'),
+      'rice_hat.png': require('../assets/images/items/rice_hat.png'),
+      'iron_sword.png': require('../assets/images/items/iron_sword.png'),
       'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
       'golden_crown.png': require('../assets/images/items/golden_crown.png')
     };
@@ -75,7 +74,7 @@ export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) =>
       {/* Chest */}
       {chestItem && (
         <Slot position={slotPositions.chest}>
-          <ImageOrPlaceholder item={chestItem} />
+          <ImageOrPlaceholder item={chestItem} scale={2} />
         </Slot>
       )}
 
@@ -121,11 +120,18 @@ const Slot: React.FC<{ position: ViewStyle; children: React.ReactNode }> = ({ po
 );
 
 // Render equipped item or fallback placeholder
-const ImageOrPlaceholder: React.FC<{ item: Item; mirrored?: boolean }> = ({ item, mirrored }) => {
+const ImageOrPlaceholder: React.FC<{ item: Item; mirrored?: boolean; scale?: number }> = ({ item, mirrored, scale = 1 }) => {
+  if (!item) return null;
+  
   const imageSource = getItemImage(item.image_path);
+  const imageStyle = [
+    styles.itemImage,
+    { transform: [{ scale }] },
+    mirrored && styles.mirrored
+  ];
 
   return imageSource ? (
-    <Image source={imageSource} style={[styles.itemImage, mirrored && styles.mirrored]} />
+    <Image source={imageSource} style={imageStyle} />
   ) : (
     <View style={styles.placeholderImage}>
       <Ionicons name="image" size={24} color="#666" />
@@ -141,7 +147,7 @@ const styles = StyleSheet.create({
   },
   slotContainer: {
     position: 'absolute',
-    width: 80,    // Bold size
+    width: 80,
     height: 80,
     justifyContent: 'center',
     alignItems: 'center',
@@ -150,6 +156,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
+  },
+  mirrored: {
+    transform: [{ scaleX: -1 }],
   },
   placeholderImage: {
     width: '100%',
@@ -160,8 +169,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 2,
     borderColor: '#666',
-  },
-  mirrored: {
-    transform: [{ scaleX: -1 }],
   },
 });

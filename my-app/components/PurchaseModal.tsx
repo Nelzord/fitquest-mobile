@@ -4,6 +4,7 @@ import { ThemedText } from './ThemedText';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/Colors';
+import { getItemImage } from './EquippedItems';
 
 interface Item {
   id: string;
@@ -83,7 +84,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ item, userGold, on
             { shadowColor: rarityGlowColors[item.rarity] }
           ]}>
             <Image
-              source={require('@/assets/images/items/cowboy_hat.png')}
+              source={getItemImage(item.image_path)}
               style={styles.itemImage}
               resizeMode="contain"
             />
