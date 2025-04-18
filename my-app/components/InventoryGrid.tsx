@@ -48,14 +48,19 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRarity, setSelectedRarity] = useState<string | null>(null);
+  const [ownershipFilter, setOwnershipFilter] = useState<'all' | 'owned' | 'not_owned'>('all');
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesRarity = !selectedRarity || item.rarity === selectedRarity;
-      return matchesSearch && matchesRarity;
+      const matchesOwnership = 
+        ownershipFilter === 'all' || 
+        (ownershipFilter === 'owned' && item.is_owned) || 
+        (ownershipFilter === 'not_owned' && !item.is_owned);
+      return matchesSearch && matchesRarity && matchesOwnership;
     });
-  }, [items, searchQuery, selectedRarity]);
+  }, [items, searchQuery, selectedRarity, ownershipFilter]);
 
   const getItemImage = (imagePath: string) => {
     try {
@@ -132,6 +137,25 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
                   ))}
                 </View>
               </View>
+              <View style={styles.ownershipSection}>
+                <ThemedText style={styles.sectionTitle}>Ownership</ThemedText>
+                <View style={styles.ownershipOptions}>
+                  {['all', 'owned', 'not_owned'].map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.ownershipOption,
+                        ownershipFilter === option && styles.selectedOwnershipOption,
+                      ]}
+                      onPress={() => setOwnershipFilter(option as 'all' | 'owned' | 'not_owned')}
+                    >
+                      <ThemedText style={styles.ownershipOptionText}>
+                        {option === 'all' ? 'All Items' : option === 'owned' ? 'Owned' : 'Not Owned'}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
           </View>
         </View>
@@ -167,19 +191,25 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
         <ThemedText style={[styles.itemRarity, { color: rarityColors[item.rarity] }]}>
           {item.rarity}
         </ThemedText>
-        {!item.is_owned && (
-          <TouchableOpacity
-            style={styles.buyButton}
-            onPress={() => setSelectedItem(item)}
-          >
-            <Image 
-              source={require('@/assets/images/logos/goldcoin.png')} 
-              style={styles.priceIcon}
-              resizeMode="contain"
-            />
-            <ThemedText style={styles.buyButtonText}>{item.price}</ThemedText>
-          </TouchableOpacity>
-        )}
+        <View style={styles.buttonContainer}>
+          {item.is_owned ? (
+            <View style={[styles.buyButton, styles.ownedButton]}>
+              <ThemedText style={styles.buyButtonText}>Owned</ThemedText>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.buyButton}
+              onPress={() => setSelectedItem(item)}
+            >
+              <Image 
+                source={require('@/assets/images/logos/goldcoin.png')} 
+                style={styles.priceIcon}
+                resizeMode="contain"
+              />
+              <ThemedText style={styles.buyButtonText}>{item.price}</ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -187,6 +217,7 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <ThemedText style={styles.title}>Available Items</ThemedText>
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilterModal(true)}
@@ -201,12 +232,14 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
         numColumns={3}
         contentContainerStyle={styles.grid}
       />
-      <PurchaseModal
-        item={selectedItem}
-        userGold={userGold}
-        onClose={() => setSelectedItem(null)}
-        onPurchase={handlePurchase}
-      />
+      {selectedItem && !selectedItem.is_owned && (
+        <PurchaseModal
+          item={selectedItem}
+          userGold={userGold}
+          onClose={() => setSelectedItem(null)}
+          onPurchase={handlePurchase}
+        />
+      )}
       {renderFilterModal()}
     </View>
   );
@@ -218,8 +251,13 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 8,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   filterButton: {
     padding: 8,
@@ -273,17 +311,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+  buttonContainer: {
+    marginTop: 'auto',
+    paddingTop: 4,
+  },
   buyButton: {
     backgroundColor: '#4CAF50',
     padding: 4,
     borderRadius: 4,
-    marginTop: 4,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   buyButtonText: {
     color: 'white',
     fontSize: 10,
     fontWeight: '600',
+  },
+  ownedButton: {
+    backgroundColor: '#808080',
   },
   modalContainer: {
     flex: 1,
@@ -349,5 +395,29 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     marginRight: 2,
+  },
+  ownershipSection: {
+    marginBottom: 16,
+  },
+  ownershipOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  ownershipOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  selectedOwnershipOption: {
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderColor: Colors.light.tint,
+  },
+  ownershipOptionText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 }); 

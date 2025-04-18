@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { InventoryGrid } from '@/components/InventoryGrid';
+import { ItemDetailsModal } from '@/components/ItemDetailsModal';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +33,7 @@ export default function InventoryScreen() {
   const { user } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [userGold, setUserGold] = useState(0);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -123,6 +125,23 @@ export default function InventoryScreen() {
     if (!user) return;
   
     try {
+      // Check if item is already owned
+      const { data: existingItem, error: checkError } = await supabase
+        .from('user_inventory')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('item_id', item.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw checkError;
+      }
+
+      if (existingItem) {
+        // Item is already owned, just show the item details
+        return;
+      }
+
       // Get user's current gold
       const { data: userStats, error: statsError } = await supabase
         .from('user_stats')
@@ -226,21 +245,28 @@ export default function InventoryScreen() {
           />
           <ThemedText style={styles(colorScheme).goldText}>{userGold}</ThemedText>
         </View>
-        <TouchableOpacity 
-          style={[styles(colorScheme).capsuleButton, userGold < 100 && styles(colorScheme).disabledButton]}
-          onPress={handlePurchaseCapsule}
-          disabled={userGold < 100}
-        >
-          <Ionicons name="gift" size={24} color="#FFD700" />
-          <ThemedText style={styles(colorScheme).capsuleText}>Mystery Capsule (100 gold)</ThemedText>
-        </TouchableOpacity>
-        <ThemedText style={styles(colorScheme).sectionTitle}>Available Items</ThemedText>
         <InventoryGrid
-          items={items.filter(item => !item.is_owned)}
-          onItemPress={handlePurchaseItem}
+          items={items}
+          onItemPress={(item) => {
+            if (item.is_owned) {
+              setSelectedItem(item);
+            } else {
+              handlePurchaseItem(item);
+            }
+          }}
           onEquipItem={handleEquipItem}
           userGold={userGold}
         />
+        {selectedItem && selectedItem.is_owned && (
+          <ItemDetailsModal
+            item={selectedItem}
+            onClose={() => setSelectedItem(null)}
+            onEquip={() => {
+              handleEquipItem(selectedItem);
+              setSelectedItem(null);
+            }}
+          />
+        )}
       </View>
     );
   };

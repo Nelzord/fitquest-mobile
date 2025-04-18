@@ -76,16 +76,16 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClos
               <ThemedText style={styles.effectText}>{item.effect}</ThemedText>
             </View>
 
-            {item.is_owned && (
+            {item.is_owned && !item.is_equipped && (
               <TouchableOpacity
                 style={[
                   styles.equipButton,
-                  { backgroundColor: item.is_equipped ? '#4CAF50' : '#2196F3' }
+                  { backgroundColor: '#2196F3' }
                 ]}
                 onPress={onEquip}
               >
                 <ThemedText style={styles.equipButtonText}>
-                  {item.is_equipped ? 'Unequip' : 'Equip'}
+                  Equip
                 </ThemedText>
               </TouchableOpacity>
             )}
