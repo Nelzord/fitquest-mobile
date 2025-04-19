@@ -46,7 +46,6 @@ export default function WorkoutDetailScreen() {
 
   const fetchWorkoutDetails = async () => {
     try {
-      // Fetch workout details
       const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
         .select('*')
@@ -55,7 +54,6 @@ export default function WorkoutDetailScreen() {
 
       if (workoutError) throw workoutError;
 
-      // Fetch exercises for this workout
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('exercises')
         .select('*')
@@ -63,7 +61,6 @@ export default function WorkoutDetailScreen() {
 
       if (exercisesError) throw exercisesError;
 
-      // Fetch sets for each exercise
       const exercisesWithSets = await Promise.all(
         exercisesData.map(async (exercise) => {
           const { data: setsData, error: setsError } = await supabase
@@ -105,6 +102,67 @@ export default function WorkoutDetailScreen() {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const renderSetDetails = (exercise: Exercise, set: Exercise['sets'][0]) => {
+    if (exercise.type === 'standard') {
+      return (
+        <>
+          <ThemedText style={styles.setDetail}>
+            {`${set.reps || '0'} reps`}
+          </ThemedText>
+          <ThemedText style={styles.setDetail}>
+            {`${set.weight || '0'} kg`}
+          </ThemedText>
+        </>
+      );
+    }
+    if (exercise.type === 'bodyweight') {
+      return (
+        <ThemedText style={styles.setDetail}>
+          {`${set.reps || '0'} reps`}
+        </ThemedText>
+      );
+    }
+    if (exercise.type === 'timed') {
+      return (
+        <>
+          <ThemedText style={styles.setDetail}>
+            {`${set.duration || '0:00'}`}
+          </ThemedText>
+          <ThemedText style={styles.setDetail}>
+            {`${set.distance || '0'} m`}
+          </ThemedText>
+        </>
+      );
+    }
+    return null;
+  };
+
+  const renderExercise = (exercise: Exercise) => (
+    <View key={exercise.id} style={styles.exerciseItem}>
+      <ThemedText style={styles.exerciseName}>{exercise.name}</ThemedText>
+      <View style={styles.setsContainer}>
+        {exercise.sets.map((set, index) => (
+          <View key={set.id} style={styles.setItem}>
+            <ThemedText style={styles.setNumber}>
+              {`Set ${index + 1}`}
+            </ThemedText>
+            {renderSetDetails(exercise, set)}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
       <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
@@ -136,13 +194,9 @@ export default function WorkoutDetailScreen() {
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
           <ThemedText style={styles.date}>
-            {new Date(workout.created_at).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
+            {formatDate(workout.created_at)}
           </ThemedText>
+          
           {workout.duration && (
             <View style={styles.durationContainer}>
               <IconSymbol name="clock" size={16} color={Colors[colorScheme].tint} />
@@ -161,43 +215,7 @@ export default function WorkoutDetailScreen() {
 
           <View style={styles.exercisesContainer}>
             <ThemedText style={styles.exercisesTitle}>Exercises</ThemedText>
-            {workout.exercises.map((exercise) => (
-              <View key={exercise.id} style={styles.exerciseItem}>
-                <ThemedText style={styles.exerciseName}>{exercise.name}</ThemedText>
-                <View style={styles.setsContainer}>
-                  {exercise.sets.map((set, index) => (
-                    <View key={set.id} style={styles.setItem}>
-                      <ThemedText style={styles.setNumber}>Set {index + 1}</ThemedText>
-                      {exercise.type === 'standard' && (
-                        <>
-                          <ThemedText style={styles.setDetail}>
-                            {set.reps || '0'} reps
-                          </ThemedText>
-                          <ThemedText style={styles.setDetail}>
-                            {set.weight || '0'} kg
-                          </ThemedText>
-                        </>
-                      )}
-                      {exercise.type === 'bodyweight' && (
-                        <ThemedText style={styles.setDetail}>
-                          {set.reps || '0'} reps
-                        </ThemedText>
-                      )}
-                      {exercise.type === 'timed' && (
-                        <>
-                          <ThemedText style={styles.setDetail}>
-                            {set.duration || '0:00'}
-                          </ThemedText>
-                          <ThemedText style={styles.setDetail}>
-                            {set.distance || '0'} m
-                          </ThemedText>
-                        </>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ))}
+            {workout.exercises.map(renderExercise)}
           </View>
         </View>
       </ScrollView>

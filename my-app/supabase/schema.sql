@@ -85,15 +85,15 @@ CREATE TABLE items (
     rarity item_rarity NOT NULL,
     effect TEXT NOT NULL,
     xp_bonus JSONB NOT NULL, -- Format: {"muscle_group": "chest", "bonus": 10} or {"muscle_group": "all", "bonus": 5}
-    gold_bonus INTEGER NOT NULL DEFAULT 0,
+    gold_bonus JSONB NOT NULL,
     luck_bonus INTEGER NOT NULL DEFAULT 0,
-    power_bonus INTEGER NOT NULL DEFAULT 0,
+    power_bonus JSONB NOT NULL,
     image_path TEXT NOT NULL,
     price INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
-
+-- Add RLS policies
 -- Create user_roles table
 CREATE TABLE user_roles (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id),

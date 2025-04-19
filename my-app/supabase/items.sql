@@ -8,7 +8,9 @@ INSERT INTO items (
     'common',
     'Gain 5% more XP from cardio exercises',
     '{"muscle_group": "cardio", "bonus": 5}'::JSONB,
-    0, 0, 1,
+    '{"muscle_group": "cardio", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "cardio", "bonus": 1}'::JSONB,
     'sweatband.png',
     NOW(), NOW(), 100
 ),
@@ -18,7 +20,9 @@ INSERT INTO items (
     'common',
     'Gain 5% more XP from leg exercises',
     '{"muscle_group": "legs", "bonus": 5}'::JSONB,
-    0, 0, 1,
+    '{"muscle_group": "legs", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "legs", "bonus": 1}'::JSONB,
     'basic_sneakers.png',
     NOW(), NOW(), 100
 );
@@ -33,7 +37,9 @@ INSERT INTO items (
     'uncommon',
     'Gain 5% more XP from all exercises and +10% luck',
     '{"muscle_group": "all", "bonus": 5}'::JSONB,
-    0, 10, 5,
+    '{"muscle_group": "all", "bonus": 0}'::JSONB,
+    10,
+    '{"muscle_group": "all", "bonus": 5}'::JSONB,
     'cowboy_hat.png',
     NOW(), NOW(), 200
 ),
@@ -43,7 +49,9 @@ INSERT INTO items (
     'uncommon',
     'Gain 10% more XP from arm exercises',
     '{"muscle_group": "arms", "bonus": 10}'::JSONB,
-    0, 0, 2,
+    '{"muscle_group": "arms", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "arms", "bonus": 2}'::JSONB,
     'iron_sword.png',
     NOW(), NOW(), 100
 );
@@ -58,7 +66,9 @@ INSERT INTO items (
     'rare',
     'Gain 15% more XP from core exercises',
     '{"muscle_group": "core", "bonus": 15}'::JSONB,
-    0, 0, 4,
+    '{"muscle_group": "core", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "core", "bonus": 4}'::JSONB,
     'cowboy_vest.png',
     NOW(), NOW(), 300
 ),
@@ -68,7 +78,9 @@ INSERT INTO items (
     'rare',
     'Gain 10% more XP from leg exercises and +5% gold earned',
     '{"muscle_group": "legs", "bonus": 10}'::JSONB,
-    5, 0, 3,
+    '{"muscle_group": "legs", "bonus": 5}'::JSONB,
+    0,
+    '{"muscle_group": "legs", "bonus": 3}'::JSONB,
     'cowboy_boots.png',
     NOW(), NOW(), 200
 );
@@ -83,7 +95,9 @@ INSERT INTO items (
     'epic',
     'Gain 10% XP from all exercises and +10 power',
     '{"muscle_group": "all", "bonus": 10}'::JSONB,
-    0, 0, 10,
+    '{"muscle_group": "all", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "all", "bonus": 10}'::JSONB,
     'rice_hat.png',
     NOW(), NOW(), 400
 );
@@ -98,7 +112,9 @@ INSERT INTO items (
     'legendary',
     'Gain 20% XP from all exercises, +20% luck, and +10% gold',
     '{"muscle_group": "all", "bonus": 20}'::JSONB,
-    10, 20, 15,
+    '{"muscle_group": "all", "bonus": 10}'::JSONB,
+    20,
+    '{"muscle_group": "all", "bonus": 15}'::JSONB,
     'golden_crown.png',
     NOW(), NOW(), 500
 ),
@@ -108,8 +124,9 @@ INSERT INTO items (
     'legendary',
     'Gain 25% XP from back exercises and +15% luck',
     '{"muscle_group": "back", "bonus": 25}'::JSONB,
-    0, 15, 12,
+    '{"muscle_group": "back", "bonus": 0}'::JSONB,
+    15,
+    '{"muscle_group": "back", "bonus": 12}'::JSONB,
     'phantom_cloak.png',
     NOW(), NOW(), 400
 );
-

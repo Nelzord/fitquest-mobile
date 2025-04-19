@@ -34,11 +34,21 @@ export const ItemPopup: React.FC<ItemPopupProps> = ({ item, onClose }) => {
 
   const getItemImage = (imagePath: string) => {
     try {
+      // Extract the filename from the full path
+      const filename = imagePath.split('/').pop() || '';
+      
       const images: { [key: string]: any } = {
+        'sweatband.png': require('@/assets/images/items/sweatband.png'),
+        'basic_sneakers.png': require('@/assets/images/items/basic_sneakers.png'),
         'cowboy_hat.png': require('@/assets/images/items/cowboy_hat.png'),
-        // Add more images here as needed
+        'cowboy_vest.png': require('@/assets/images/items/cowboy_vest.png'),
+        'cowboy_boots.png': require('@/assets/images/items/cowboy_boots.png'),
+        'rice_hat.png': require('@/assets/images/items/rice_hat.png'),
+        'iron_sword.png': require('@/assets/images/items/iron_sword.png'),
+        'phantom_cloak.png': require('@/assets/images/items/phantom_cloak.png'),
+        'golden_crown.png': require('@/assets/images/items/golden_crown.png')
       };
-      return images[imagePath] || null;
+      return images[filename] || null;
     } catch (error) {
       return null;
     }

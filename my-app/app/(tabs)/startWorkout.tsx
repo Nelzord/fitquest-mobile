@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback, ActivityIndicator, ImageSourcePropType } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol'; // Assuming IconSymbol exists
@@ -8,7 +8,8 @@ import { Colors } from '@/constants/Colors'; // Import Colors
 import { useSafeAreaInsets } from 'react-native-safe-area-context'; // Import for safe area
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { WorkoutCompletionModal } from '@/components/WorkoutCompletionModal';
+import WorkoutCompletionModal from '@/components/WorkoutCompletionModal';
+import { getItemImage } from '@/components/EquippedItems';
 
 interface CommonExercise {
   name: string;
@@ -53,6 +54,49 @@ interface Exercise {
   name: string;
   type: 'standard' | 'bodyweight' | 'timed'; // Add type to main exercise state
   sets: Set[]; // Can represent sets or timed entries
+}
+
+interface ItemBonus {
+  muscle_group: string;
+  bonus: number;
+}
+
+interface EquippedItem {
+  item_id: number;
+  items: {
+    name: string;
+    xp_bonus: ItemBonus;
+    gold_bonus: ItemBonus;
+    effect: string;
+  };
+}
+
+interface WorkoutCompletionStats {
+  totalSets: number;
+  totalReps: number;
+  totalVolume: number;
+  xpGain: number;
+  goldGain: number;
+  currentLevel: number;
+  newLevel: number;
+  currentXP: number;
+  requiredXP: number;
+  itemBonuses: { name: string; effect: string }[];
+  muscleGroupGains: {
+    chest: { xp: number; gold: number };
+    back: { xp: number; gold: number };
+    legs: { xp: number; gold: number };
+    shoulders: { xp: number; gold: number };
+    arms: { xp: number; gold: number };
+    core: { xp: number; gold: number };
+    cardio: { xp: number; gold: number };
+  };
+  equippedItems: {
+    name: string;
+    image: ImageSourcePropType | null;
+    xpBonus: ItemBonus | null;
+    goldBonus: ItemBonus | null;
+  }[];
 }
 
 // Update props to include set handlers
@@ -455,17 +499,7 @@ export default function StartWorkoutScreen() {
   const [durationFilter, setDurationFilter] = useState<string | null>(null);
   const { user } = useAuth();
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [completionStats, setCompletionStats] = useState<{
-    totalSets: number;
-    totalReps: number;
-    totalVolume: number;
-    xpGain: number;
-    goldGain: number;
-    currentLevel: number;
-    newLevel: number;
-    currentXP: number;
-    requiredXP: number;
-  } | null>(null);
+  const [completionStats, setCompletionStats] = useState<WorkoutCompletionStats | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Memoize filtered data - now includes category filtering
@@ -648,12 +682,28 @@ export default function StartWorkoutScreen() {
       return;
     }
 
-    // Calculate XP and gold gains
-    const xpGain = totalSets * 10; // 10 XP per set
-    const goldGain = totalSets * 2; // 2 gold per set
+    // Get user's equipped items and their bonuses
+    const { data: equippedItems, error: itemsError } = await supabase
+      .from('user_inventory')
+      .select(`
+        item_id,
+        items (
+          name,
+          xp_bonus,
+          gold_bonus,
+          effect
+        )
+      `)
+      .eq('user_id', user.id)
+      .eq('is_equipped', true) as { data: EquippedItem[] | null, error: any };
 
-    // Calculate muscle group XP gains
-    const muscleGroupXPGains = exercises.reduce((acc, exercise) => {
+    if (itemsError) {
+      console.error('Error fetching equipped items:', itemsError);
+      return;
+    }
+
+    // Calculate muscle group XP and gold gains
+    const muscleGroupGains = exercises.reduce((acc, exercise) => {
       const completedSets = exercise.sets.filter(set => set.completed).length;
       if (completedSets === 0) return acc;
 
@@ -664,29 +714,141 @@ export default function StartWorkoutScreen() {
 
       if (commonExercise) {
         const muscleGroups = commonExercise.muscle.toLowerCase();
-        const xpPerSet = 10; // Same as base XP per set
+        const xpPerSet = 10; // Base XP per set
+        const goldPerSet = 2; // Base gold per set
 
-        // Distribute XP to relevant muscle groups
+        // Calculate XP and gold for each muscle group separately
         if (muscleGroups.includes('chest') || muscleGroups.includes('pectoralis')) {
-          acc.chest_xp += completedSets * xpPerSet;
+          const chestXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const xpBonus = item.items?.xp_bonus;
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'chest') {
+              return bonus + xpBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          const chestGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const goldBonus = item.items?.gold_bonus;
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'chest') {
+              return bonus + goldBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          acc.chest_xp += completedSets * xpPerSet * (1 + chestXPBonus / 100);
+          acc.chest_gold += completedSets * goldPerSet * (1 + chestGoldBonus / 100);
         }
+
         if (muscleGroups.includes('back') || muscleGroups.includes('latissimus') || muscleGroups.includes('rhomboids')) {
-          acc.back_xp += completedSets * xpPerSet;
+          const backXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const xpBonus = item.items?.xp_bonus;
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'back') {
+              return bonus + xpBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          const backGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const goldBonus = item.items?.gold_bonus;
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'back') {
+              return bonus + goldBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          acc.back_xp += completedSets * xpPerSet * (1 + backXPBonus / 100);
+          acc.back_gold += completedSets * goldPerSet * (1 + backGoldBonus / 100);
         }
+
         if (muscleGroups.includes('legs') || muscleGroups.includes('quadriceps') || muscleGroups.includes('glutes') || muscleGroups.includes('hamstrings')) {
-          acc.legs_xp += completedSets * xpPerSet;
+          const legsXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const xpBonus = item.items?.xp_bonus;
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'legs') {
+              return bonus + xpBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          const legsGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const goldBonus = item.items?.gold_bonus;
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'legs') {
+              return bonus + goldBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          acc.legs_xp += completedSets * xpPerSet * (1 + legsXPBonus / 100);
+          acc.legs_gold += completedSets * goldPerSet * (1 + legsGoldBonus / 100);
         }
+
         if (muscleGroups.includes('shoulders') || muscleGroups.includes('deltoids')) {
-          acc.shoulders_xp += completedSets * xpPerSet;
+          const shouldersXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const xpBonus = item.items?.xp_bonus;
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'shoulders') {
+              return bonus + xpBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          const shouldersGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const goldBonus = item.items?.gold_bonus;
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'shoulders') {
+              return bonus + goldBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          acc.shoulders_xp += completedSets * xpPerSet * (1 + shouldersXPBonus / 100);
+          acc.shoulders_gold += completedSets * goldPerSet * (1 + shouldersGoldBonus / 100);
         }
+
         if (muscleGroups.includes('arms') || muscleGroups.includes('biceps') || muscleGroups.includes('triceps')) {
-          acc.arms_xp += completedSets * xpPerSet;
+          const armsXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const xpBonus = item.items?.xp_bonus;
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'arms') {
+              return bonus + xpBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          const armsGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const goldBonus = item.items?.gold_bonus;
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'arms') {
+              return bonus + goldBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          acc.arms_xp += completedSets * xpPerSet * (1 + armsXPBonus / 100);
+          acc.arms_gold += completedSets * goldPerSet * (1 + armsGoldBonus / 100);
         }
+
         if (muscleGroups.includes('core') || muscleGroups.includes('abdominal')) {
-          acc.core_xp += completedSets * xpPerSet;
+          const coreXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const xpBonus = item.items?.xp_bonus;
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'core') {
+              return bonus + xpBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          const coreGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const goldBonus = item.items?.gold_bonus;
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'core') {
+              return bonus + goldBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          acc.core_xp += completedSets * xpPerSet * (1 + coreXPBonus / 100);
+          acc.core_gold += completedSets * goldPerSet * (1 + coreGoldBonus / 100);
         }
+
         if (muscleGroups.includes('cardio') || muscleGroups.includes('cardiovascular') || muscleGroups.includes('full body')) {
-          acc.cardio_xp += completedSets * xpPerSet;
+          const cardioXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const xpBonus = item.items?.xp_bonus;
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'cardio') {
+              return bonus + xpBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          const cardioGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+            const goldBonus = item.items?.gold_bonus;
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'cardio') {
+              return bonus + goldBonus.bonus;
+            }
+            return bonus;
+          }, 0) : 0;
+          acc.cardio_xp += completedSets * xpPerSet * (1 + cardioXPBonus / 100);
+          acc.cardio_gold += completedSets * goldPerSet * (1 + cardioGoldBonus / 100);
         }
       }
 
@@ -698,30 +860,45 @@ export default function StartWorkoutScreen() {
       shoulders_xp: 0,
       arms_xp: 0,
       core_xp: 0,
-      cardio_xp: 0
+      cardio_xp: 0,
+      chest_gold: 0,
+      back_gold: 0,
+      legs_gold: 0,
+      shoulders_gold: 0,
+      arms_gold: 0,
+      core_gold: 0,
+      cardio_gold: 0
     });
 
+    // Calculate total XP and gold gains
+    const totalXPGain = Object.entries(muscleGroupGains)
+      .filter(([key]) => key.endsWith('_xp'))
+      .reduce((sum, [_, xp]) => sum + xp, 0);
+    const totalGoldGain = Object.entries(muscleGroupGains)
+      .filter(([key]) => key.endsWith('_gold'))
+      .reduce((sum, [_, gold]) => sum + gold, 0);
+
     // Calculate new XP and check for level up
-    const newXP = (currentStats?.xp || 0) + xpGain;
+    const newXP = (currentStats?.xp || 0) + totalXPGain;
     const currentLevel = currentStats?.level || 1;
     const requiredXP = calculateRequiredXP(currentLevel);
     const newLevel = newXP >= requiredXP ? currentLevel + 1 : currentLevel;
 
-    // Update user stats with muscle group XP
+    // Update user stats with muscle group XP and gold
     const { error: updateError } = await supabase
       .from('user_stats')
       .upsert({
         user_id: user.id,
-        xp: newXP,
-        gold: (currentStats?.gold || 0) + goldGain,
+        xp: Math.round(newXP),
+        gold: Math.round((currentStats?.gold || 0) + totalGoldGain),
         level: newLevel,
-        chest_xp: (currentStats?.chest_xp || 0) + muscleGroupXPGains.chest_xp,
-        back_xp: (currentStats?.back_xp || 0) + muscleGroupXPGains.back_xp,
-        legs_xp: (currentStats?.legs_xp || 0) + muscleGroupXPGains.legs_xp,
-        shoulders_xp: (currentStats?.shoulders_xp || 0) + muscleGroupXPGains.shoulders_xp,
-        arms_xp: (currentStats?.arms_xp || 0) + muscleGroupXPGains.arms_xp,
-        core_xp: (currentStats?.core_xp || 0) + muscleGroupXPGains.core_xp,
-        cardio_xp: (currentStats?.cardio_xp || 0) + muscleGroupXPGains.cardio_xp,
+        chest_xp: Math.round((currentStats?.chest_xp || 0) + muscleGroupGains.chest_xp),
+        back_xp: Math.round((currentStats?.back_xp || 0) + muscleGroupGains.back_xp),
+        legs_xp: Math.round((currentStats?.legs_xp || 0) + muscleGroupGains.legs_xp),
+        shoulders_xp: Math.round((currentStats?.shoulders_xp || 0) + muscleGroupGains.shoulders_xp),
+        arms_xp: Math.round((currentStats?.arms_xp || 0) + muscleGroupGains.arms_xp),
+        core_xp: Math.round((currentStats?.core_xp || 0) + muscleGroupGains.core_xp),
+        cardio_xp: Math.round((currentStats?.cardio_xp || 0) + muscleGroupGains.cardio_xp),
         last_updated: new Date().toISOString()
       });
 
@@ -730,11 +907,30 @@ export default function StartWorkoutScreen() {
     }
 
     return {
-      xpGain,
-      goldGain,
+      xpGain: totalXPGain,
+      goldGain: totalGoldGain,
       newLevel,
       leveledUp: newLevel > currentLevel,
-      newXP
+      newXP,
+      itemBonuses: equippedItems?.map(item => ({
+        name: item.items?.name || '',
+        effect: item.items?.effect || ''
+      })) || [],
+      muscleGroupGains: {
+        chest: { xp: Math.floor(muscleGroupGains.chest_xp), gold: Math.floor(muscleGroupGains.chest_gold) },
+        back: { xp: Math.floor(muscleGroupGains.back_xp), gold: Math.floor(muscleGroupGains.back_gold) },
+        legs: { xp: Math.floor(muscleGroupGains.legs_xp), gold: Math.floor(muscleGroupGains.legs_gold) },
+        shoulders: { xp: Math.floor(muscleGroupGains.shoulders_xp), gold: Math.floor(muscleGroupGains.shoulders_gold) },
+        arms: { xp: Math.floor(muscleGroupGains.arms_xp), gold: Math.floor(muscleGroupGains.arms_gold) },
+        core: { xp: Math.floor(muscleGroupGains.core_xp), gold: Math.floor(muscleGroupGains.core_gold) },
+        cardio: { xp: Math.floor(muscleGroupGains.cardio_xp), gold: Math.floor(muscleGroupGains.cardio_gold) }
+      },
+      equippedItems: equippedItems?.map(item => ({
+        name: item.items?.name || '',
+        image: item.items?.name ? getItemImage(item.items.name) : null,
+        xpBonus: item.items?.xp_bonus || null,
+        goldBonus: item.items?.gold_bonus || null
+      })) || []
     };
   };
 
@@ -776,7 +972,7 @@ export default function StartWorkoutScreen() {
         .insert({
           user_id: user.id,
           notes: notes,
-          duration: time,
+          duration: Math.floor(time / 60), // Convert seconds to minutes
         })
         .select()
         .single();
@@ -802,13 +998,20 @@ export default function StartWorkoutScreen() {
 
         // 3. Create set records
         for (const set of exercise.sets) {
+          // Parse duration string into minutes if it exists
+          let durationInMinutes = null;
+          if (set.duration) {
+            const [minutes, seconds] = set.duration.split(':').map(Number);
+            durationInMinutes = Math.round(minutes + (seconds / 60)); // Round to nearest integer
+          }
+
           const { error: setError } = await supabase
             .from('sets')
             .insert({
               exercise_id: exerciseData.id,
               reps: set.reps,
               weight: set.weight,
-              duration: set.duration,
+              duration: durationInMinutes,
               distance: set.distance,
               completed: set.completed,
             });
@@ -831,6 +1034,17 @@ export default function StartWorkoutScreen() {
         newLevel: statsUpdate?.newLevel || 1,
         currentXP: statsUpdate?.newXP || 0,
         requiredXP: calculateRequiredXP(statsUpdate?.newLevel || 1),
+        itemBonuses: statsUpdate?.itemBonuses || [],
+        muscleGroupGains: statsUpdate?.muscleGroupGains || {
+          chest: { xp: 0, gold: 0 },
+          back: { xp: 0, gold: 0 },
+          legs: { xp: 0, gold: 0 },
+          shoulders: { xp: 0, gold: 0 },
+          arms: { xp: 0, gold: 0 },
+          core: { xp: 0, gold: 0 },
+          cardio: { xp: 0, gold: 0 }
+        },
+        equippedItems: statsUpdate?.equippedItems || []
       });
 
       // Show completion modal
@@ -1043,6 +1257,17 @@ export default function StartWorkoutScreen() {
           newLevel: 1,
           currentXP: 0,
           requiredXP: 100,
+          itemBonuses: [],
+          muscleGroupGains: {
+            chest: { xp: 0, gold: 0 },
+            back: { xp: 0, gold: 0 },
+            legs: { xp: 0, gold: 0 },
+            shoulders: { xp: 0, gold: 0 },
+            arms: { xp: 0, gold: 0 },
+            core: { xp: 0, gold: 0 },
+            cardio: { xp: 0, gold: 0 }
+          },
+          equippedItems: []
         }}
       />
     </KeyboardAvoidingView>

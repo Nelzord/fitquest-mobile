@@ -78,28 +78,37 @@ export default function WorkoutDetailsScreen() {
     }
   };
 
+  const renderSetDetails = (exercise: Exercise, set: Exercise['sets'][0]) => {
+    if (exercise.type === 'standard') {
+      return (
+        <>
+          <ThemedText style={styles.setValue}>{`${set.reps ?? 0} reps`}</ThemedText>
+          <ThemedText style={styles.setValue}>{`${set.weight ?? 0} lbs`}</ThemedText>
+        </>
+      );
+    }
+    if (exercise.type === 'bodyweight') {
+      return <ThemedText style={styles.setValue}>{`${set.reps ?? 0} reps`}</ThemedText>;
+    }
+    if (exercise.type === 'timed') {
+      return (
+        <>
+          {set.duration !== null && <ThemedText style={styles.setValue}>{`${set.duration} min`}</ThemedText>}
+          {set.distance !== null && <ThemedText style={styles.setValue}>{`${set.distance} mi`}</ThemedText>}
+        </>
+      );
+    }
+    return null;
+  };
+
   const renderExercise = (exercise: Exercise) => (
     <View key={exercise.id} style={styles.exerciseContainer}>
       <ThemedText style={styles.exerciseName}>{exercise.name}</ThemedText>
       <View style={styles.setsContainer}>
         {exercise.sets.map((set, index) => (
           <View key={set.id} style={styles.setRow}>
-            <ThemedText style={styles.setNumber}>Set {index + 1}</ThemedText>
-            {exercise.type === 'standard' && (
-              <>
-                <ThemedText style={styles.setValue}>{set.reps} reps</ThemedText>
-                <ThemedText style={styles.setValue}>{set.weight} lbs</ThemedText>
-              </>
-            )}
-            {exercise.type === 'bodyweight' && (
-              <ThemedText style={styles.setValue}>{set.reps} reps</ThemedText>
-            )}
-            {exercise.type === 'timed' && (
-              <>
-                <ThemedText style={styles.setValue}>{set.duration} min</ThemedText>
-                <ThemedText style={styles.setValue}>{set.distance} mi</ThemedText>
-              </>
-            )}
+            <ThemedText style={styles.setNumber}>{`Set ${index + 1}`}</ThemedText>
+            {renderSetDetails(exercise, set)}
           </View>
         ))}
       </View>
@@ -132,7 +141,7 @@ export default function WorkoutDetailsScreen() {
         {workout.duration && (
           <View style={styles.durationContainer}>
             <IconSymbol name="clock" size={16} color={colorScheme ? Colors[colorScheme].tint : Colors.light.tint} />
-            <ThemedText style={styles.duration}>{workout.duration} min</ThemedText>
+            <ThemedText style={styles.duration}>{`${workout.duration} min`}</ThemedText>
           </View>
         )}
       </View>
@@ -208,6 +217,7 @@ const styles = StyleSheet.create({
   setRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.secondaryBackground,
@@ -215,8 +225,12 @@ const styles = StyleSheet.create({
   setNumber: {
     fontSize: 14,
     fontWeight: 'bold',
+    minWidth: 60,
   },
   setValue: {
     fontSize: 14,
+    marginLeft: 8,
+    textAlign: 'right',
+    minWidth: 60,
   },
 }); 

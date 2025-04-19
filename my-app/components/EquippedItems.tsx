@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Image, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from './ThemedText';
+import { ImageSourcePropType } from 'react-native';
 
 interface Item {
   id: number;
@@ -32,24 +33,31 @@ const slotPositions = {
 };
 
 // Helper to load images
-export const getItemImage = (imagePath: string) => {
-  try {
-    const images: { [key: string]: any } = {
-      'sweatband.png': require('../assets/images/items/sweatband.png'),
-      'basic_sneakers.png': require('../assets/images/items/basic_sneakers.png'),
-      'cowboy_hat.png': require('../assets/images/items/cowboy_hat.png'),
-      'cowboy_vest.png': require('../assets/images/items/cowboy_vest.png'),
-      'cowboy_boots.png': require('../assets/images/items/cowboy_boots.png'),
-      'rice_hat.png': require('../assets/images/items/rice_hat.png'),
-      'iron_sword.png': require('../assets/images/items/iron_sword.png'),
-      'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
-      'golden_crown.png': require('../assets/images/items/golden_crown.png')
-    };
-    return images[imagePath] || null;
-  } catch (error) {
-    console.error('Error loading image:', error);
-    return null;
-  }
+// need to fix this bug with images loading separately
+export const getItemImage = (itemName: string): ImageSourcePropType => {
+  const imageMap: Record<string, ImageSourcePropType> = {
+    'Sweatband': require('@/assets/images/items/sweatband.png'),
+    'Basic Sneakers': require('@/assets/images/items/basic_sneakers.png'),
+    'Cowboy Hat': require('@/assets/images/items/cowboy_hat.png'),
+    'Cowboy Vest': require('@/assets/images/items/cowboy_vest.png'),
+    'Cowboy Boots': require('@/assets/images/items/cowboy_boots.png'),
+    'Rice Hat': require('@/assets/images/items/rice_hat.png'),
+    'Iron Sword': require('@/assets/images/items/iron_sword.png'),
+    'Phantom Cloak': require('@/assets/images/items/phantom_cloak.png'),
+    'Golden Crown': require('@/assets/images/items/golden_crown.png'),
+    'sweatband.png': require('../assets/images/items/sweatband.png'),
+        'basic_sneakers.png': require('../assets/images/items/basic_sneakers.png'),
+        'cowboy_hat.png': require('../assets/images/items/cowboy_hat.png'),
+        'cowboy_vest.png': require('../assets/images/items/cowboy_vest.png'),
+        'cowboy_boots.png': require('../assets/images/items/cowboy_boots.png'),
+        'rice_hat.png': require('../assets/images/items/rice_hat.png'),
+        'iron_sword.png': require('../assets/images/items/iron_sword.png'),
+        'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
+        'golden_crown.png': require('../assets/images/items/golden_crown.png')
+
+  };
+
+  return imageMap[itemName] || require('@/assets/images/items/iron_sword.png');
 };
 
 export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) => {
@@ -123,7 +131,7 @@ const Slot: React.FC<{ position: ViewStyle; children: React.ReactNode }> = ({ po
 const ImageOrPlaceholder: React.FC<{ item: Item; mirrored?: boolean; scale?: number }> = ({ item, mirrored, scale = 1 }) => {
   if (!item) return null;
   
-  const imageSource = getItemImage(item.image_path);
+  const imageSource = getItemImage(item.name);
   const imageStyle = [
     styles.itemImage,
     { transform: [{ scale }] },
