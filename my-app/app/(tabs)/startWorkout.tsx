@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback, ActivityIndicator, ImageSourcePropType } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback, ActivityIndicator, ImageSourcePropType, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol'; // Assuming IconSymbol exists
@@ -940,7 +940,42 @@ export default function StartWorkoutScreen() {
       return;
     }
 
-    console.log('User ID:', user.id);
+    // Validate all sets before saving
+    const invalidSets = exercises.flatMap(exercise => {
+      return exercise.sets.filter(set => {
+        if (set.completed) {
+          if (exercise.type === 'standard' && (!set.reps || !set.weight)) {
+            return true;
+          }
+          if (exercise.type === 'bodyweight' && !set.reps) {
+            return true;
+          }
+          if (exercise.type === 'timed' && !set.duration) {
+            return true;
+          }
+        }
+        return false;
+      }).map(set => ({
+        exerciseName: exercise.name,
+        setNumber: exercise.sets.indexOf(set) + 1,
+        type: exercise.type
+      }));
+    });
+
+    if (invalidSets.length > 0) {
+      // Show error message with details about invalid sets
+      const errorMessage = `Please complete the following sets:\n${invalidSets.map(set => 
+        `- ${set.exerciseName} (Set ${set.setNumber}): ${set.type === 'standard' ? 'reps and weight' : 
+          set.type === 'bodyweight' ? 'reps' : 'duration'} required`
+      ).join('\n')}`;
+      
+      Alert.alert(
+        'Incomplete Sets',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -998,6 +1033,8 @@ export default function StartWorkoutScreen() {
 
         // 3. Create set records
         for (const set of exercise.sets) {
+          if (!set.completed) continue; // Skip incomplete sets
+
           // Parse duration string into minutes if it exists
           let durationInMinutes = null;
           if (set.duration) {
@@ -1009,10 +1046,10 @@ export default function StartWorkoutScreen() {
             .from('sets')
             .insert({
               exercise_id: exerciseData.id,
-              reps: set.reps,
-              weight: set.weight,
+              reps: set.reps ? parseInt(set.reps) : null,
+              weight: set.weight ? parseFloat(set.weight) : null,
               duration: durationInMinutes,
-              distance: set.distance,
+              distance: set.distance ? parseFloat(set.distance) : null,
               completed: set.completed,
             });
 
@@ -1058,7 +1095,11 @@ export default function StartWorkoutScreen() {
 
     } catch (error) {
       console.error('Error saving workout:', error);
-      // You might want to show an error message to the user here
+      Alert.alert(
+        'Error',
+        'Failed to save workout. Please try again.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setIsSaving(false);
     }

@@ -387,7 +387,7 @@ export default function HistoryScreen() {
 
   const ListFooter = () => (
     <>
-      {!showAllWorkouts && filteredWorkouts.length > 5 && (
+      {isHistoryExpanded && !showAllWorkouts && filteredWorkouts.length > 5 && (
         <TouchableOpacity 
           style={styles.seeMoreButton}
           onPress={() => setShowAllWorkouts(true)}
