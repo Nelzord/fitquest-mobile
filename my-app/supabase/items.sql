@@ -130,3 +130,45 @@ INSERT INTO items (
     'phantom_cloak.png',
     NOW(), NOW(), 400
 );
+
+
+-- Achievement Reward Items
+INSERT INTO items (
+    name, slot_type, rarity, effect, xp_bonus, gold_bonus, luck_bonus, power_bonus, image_path, created_at, updated_at, price
+) VALUES 
+(
+    'Training Cap',
+    'head',
+    'common',
+    'Gain 5% more XP from all exercises. Awarded for reaching Level 2!',
+    '{"muscle_group": "all", "bonus": 5}'::JSONB,
+    '{"muscle_group": "all", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "all", "bonus": 1}'::JSONB,
+    'training_cap.png',
+    NOW(), NOW(), 0
+),
+(
+    'Hard Work Medal',
+    'accessory',
+    'common',
+    'Gain 5% more XP from all exercises. Awarded for earning 1,000 total XP!',
+    '{"muscle_group": "all", "bonus": 5}'::JSONB,
+    '{"muscle_group": "all", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "all", "bonus": 1}'::JSONB,
+    'hard_work_medal.png',
+    NOW(), NOW(), 0
+),
+(
+    'Leg Day Band',
+    'legs',
+    'common',
+    'Gain 7% more XP from leg exercises. Awarded for 500 XP in leg workouts!',
+    '{"muscle_group": "legs", "bonus": 7}'::JSONB,
+    '{"muscle_group": "legs", "bonus": 0}'::JSONB,
+    0,
+    '{"muscle_group": "legs", "bonus": 2}'::JSONB,
+    'leg_day_band.png',
+    NOW(), NOW(), 0
+);

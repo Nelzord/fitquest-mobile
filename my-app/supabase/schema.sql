@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS user_stats CASCADE;
 DROP TABLE IF EXISTS items CASCADE;
 DROP TABLE IF EXISTS user_roles CASCADE;
 DROP TABLE IF EXISTS user_inventory CASCADE;
+DROP TABLE IF EXISTS achievements CASCADE;
 
 -- Create the workouts table with statistics columns
 CREATE TABLE IF NOT EXISTS workouts (
@@ -490,4 +491,45 @@ CREATE POLICY "Only admins can delete items"
         SELECT 1 FROM user_roles
         WHERE user_id = auth.uid()
         AND role = 'admin'
-    )); 
+    ));
+
+-- First, create the function to update the updated_at timestamp
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = timezone('utc'::text, now());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Then create the achievements table
+CREATE TABLE achievements (
+    id uuid default uuid_generate_v4() primary key,
+    title text not null,
+    requirement text not null,
+    description text not null,
+    item_id uuid references items(id),
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Add trigger to automatically update the updated_at timestamp
+CREATE TRIGGER set_updated_at
+    BEFORE UPDATE ON achievements
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();
+
+-- Add RLS policies
+ALTER TABLE achievements ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to read achievements
+CREATE POLICY "Allow authenticated users to read achievements"
+    ON achievements FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Allow service role to manage achievements
+CREATE POLICY "Allow service role to manage achievements"
+    ON achievements FOR ALL
+    TO service_role
+    USING (true); 

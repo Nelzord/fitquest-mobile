@@ -53,7 +53,10 @@ export const getItemImage = (itemName: string): ImageSourcePropType => {
         'rice_hat.png': require('../assets/images/items/rice_hat.png'),
         'iron_sword.png': require('../assets/images/items/iron_sword.png'),
         'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
-        'golden_crown.png': require('../assets/images/items/golden_crown.png')
+        'golden_crown.png': require('../assets/images/items/golden_crown.png'),
+        'training_cap.png': require('../assets/images/items/golden_crown.png'),
+        'hard_work_medal.png': require('../assets/images/items/golden_crown.png'),
+        'leg_day_band.png': require('../assets/images/items/golden_crown.png')
 
   };
 

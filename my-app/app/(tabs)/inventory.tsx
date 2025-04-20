@@ -10,6 +10,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import { AchievementsList } from '@/components/AchievementsList';
 
 type TabType = 'shop' | 'achievements' | 'items';
 
@@ -279,7 +281,7 @@ export default function InventoryScreen() {
         return (
           <View style={styles(colorScheme).tabContent}>
             <ThemedText style={styles(colorScheme).sectionTitle}>Achievements</ThemedText>
-            <ThemedText>Coming soon!</ThemedText>
+            <AchievementsList />
           </View>
         );
       case 'items':
@@ -299,27 +301,29 @@ export default function InventoryScreen() {
 
   return (
     <ThemedView style={[styles(colorScheme).container, { paddingTop: insets.top }]}>
-      <View style={styles(colorScheme).tabBar}>
+      <View style={styles(colorScheme).tabContainer}>
         <TouchableOpacity
           style={[styles(colorScheme).tab, activeTab === 'shop' && styles(colorScheme).activeTab]}
           onPress={() => setActiveTab('shop')}
         >
-          <Ionicons name="cart" size={24} color={activeTab === 'shop' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
-          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'shop' && styles(colorScheme).activeTabText]}>Shop</ThemedText>
+          <IconSymbol name="cart" size={20} color={Colors[colorScheme].text} />
+          <ThemedText style={styles(colorScheme).tabText}>Shop</ThemedText>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles(colorScheme).tab, activeTab === 'achievements' && styles(colorScheme).activeTab]}
           onPress={() => setActiveTab('achievements')}
         >
-          <Ionicons name="trophy" size={24} color={activeTab === 'achievements' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
-          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'achievements' && styles(colorScheme).activeTabText]}>Achievements</ThemedText>
+          <IconSymbol name="trophy" size={20} color={Colors[colorScheme].text} />
+          <ThemedText style={styles(colorScheme).tabText}>Achievements</ThemedText>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles(colorScheme).tab, activeTab === 'items' && styles(colorScheme).activeTab]}
           onPress={() => setActiveTab('items')}
         >
-          <Ionicons name="bag" size={24} color={activeTab === 'items' ? Colors[colorScheme].tint : Colors[colorScheme].tabIconDefault} />
-          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'items' && styles(colorScheme).activeTabText]}>Items</ThemedText>
+          <IconSymbol name="bag" size={20} color={Colors[colorScheme].text} />
+          <ThemedText style={styles(colorScheme).tabText}>Items</ThemedText>
         </TouchableOpacity>
       </View>
       <View style={styles(colorScheme).content}>
@@ -333,27 +337,26 @@ const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
   },
-  tabBar: {
+  tabContainer: {
     flexDirection: 'row',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderBottomColor: Colors[colorScheme].borderColor,
   },
   tab: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    justifyContent: 'center',
+    padding: 12,
+    gap: 8,
   },
   activeTab: {
+    borderBottomWidth: 2,
     borderBottomColor: Colors[colorScheme].tint,
   },
   tabText: {
-    marginTop: 4,
-    fontSize: 12,
-  },
-  activeTabText: {
-    color: Colors[colorScheme].tint,
+    fontSize: 16,
     fontWeight: '600',
   },
   content: {
