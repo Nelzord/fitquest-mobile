@@ -50,6 +50,7 @@ export default function HistoryScreen() {
   const [filteredWorkouts, setFilteredWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showAllWorkouts, setShowAllWorkouts] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     sortBy: 'date',
     order: 'desc'
@@ -385,20 +386,35 @@ export default function HistoryScreen() {
   };
 
   const ListFooter = () => (
-    <ThemedView style={styles.statsSection}>
-      <TouchableOpacity 
-        style={styles.headerContent}
-        onPress={() => setIsStatsExpanded(!isStatsExpanded)}
-      >
-        <ThemedText style={styles.title}>Your Stats</ThemedText>
-        <IconSymbol 
-          name={isStatsExpanded ? "chevron.up" : "chevron.down"} 
-          size={20} 
-          color={Colors[colorScheme].text}
-        />
-      </TouchableOpacity>
-      {isStatsExpanded && renderStats()}
-    </ThemedView>
+    <>
+      {!showAllWorkouts && filteredWorkouts.length > 5 && (
+        <TouchableOpacity 
+          style={styles.seeMoreButton}
+          onPress={() => setShowAllWorkouts(true)}
+        >
+          <ThemedText style={styles.seeMoreText}>See More Workouts</ThemedText>
+          <IconSymbol 
+            name="chevron.down" 
+            size={20} 
+            color={Colors[colorScheme].text}
+          />
+        </TouchableOpacity>
+      )}
+      <ThemedView style={styles.statsSection}>
+        <TouchableOpacity 
+          style={styles.headerContent}
+          onPress={() => setIsStatsExpanded(!isStatsExpanded)}
+        >
+          <ThemedText style={styles.title}>Your Stats</ThemedText>
+          <IconSymbol 
+            name={isStatsExpanded ? "chevron.up" : "chevron.down"} 
+            size={20} 
+            color={Colors[colorScheme].text}
+          />
+        </TouchableOpacity>
+        {isStatsExpanded && renderStats()}
+      </ThemedView>
+    </>
   );
 
   if (loading) {
@@ -409,10 +425,14 @@ export default function HistoryScreen() {
     );
   }
 
+  const displayedWorkouts = isHistoryExpanded 
+    ? (showAllWorkouts ? filteredWorkouts : filteredWorkouts.slice(0, 5))
+    : [];
+
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <FlatList
-        data={isHistoryExpanded ? filteredWorkouts : []}
+        data={displayedWorkouts}
         renderItem={renderWorkoutItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}
@@ -635,5 +655,16 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   statsSection: {
     marginTop: 24,
     paddingHorizontal: 16,
+  },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+  },
+  seeMoreText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

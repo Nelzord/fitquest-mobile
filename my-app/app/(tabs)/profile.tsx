@@ -53,6 +53,30 @@ interface Item {
   price: number;
 }
 
+interface RankInfo {
+  name: string;
+  logo: any;
+  color: string;
+  minXP: number;
+  letter: string;
+}
+
+const RANKS: RankInfo[] = [
+  { name: 'Bronze', logo: require('@/assets/images/logos/bronzerank.png'), color: '#CD7F32', minXP: 0, letter: 'F' },
+  { name: 'Silver', logo: require('@/assets/images/logos/silverrank.png'), color: '#C0C0C0', minXP: 50, letter: 'D' },
+  { name: 'Gold', logo: require('@/assets/images/logos/goldrank.png'), color: '#FFD700', minXP: 150, letter: 'C' },
+  { name: 'Platinum', logo: require('@/assets/images/logos/platinumrank.png'), color: '#E5E4E2', minXP: 300, letter: 'B' },
+  { name: 'Diamond', logo: require('@/assets/images/logos/diamondrank.png'), color: '#B9F2FF', minXP: 500, letter: 'A' },
+  { name: 'Master', logo: require('@/assets/images/logos/masterrank.png'), color: '#FF4500', minXP: 700, letter: 'S' },
+  { name: 'Legend', logo: require('@/assets/images/logos/legendrank.png'), color: '#FF0000', minXP: 900, letter: 'SS' },
+];
+
+const getRankInfo = (xp: number): RankInfo => {
+  return RANKS.reduce((currentRank, rank) => {
+    return xp >= rank.minXP ? rank : currentRank;
+  }, RANKS[0]);
+};
+
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const insets = useSafeAreaInsets();
@@ -163,6 +187,36 @@ export default function ProfileScreen() {
           <ThemedText style={styles.email}>{user?.email}</ThemedText>
           
           <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Image 
+                source={getRankInfo(
+                  Math.floor((
+                    (userStats?.chest_xp || 0) +
+                    (userStats?.back_xp || 0) +
+                    (userStats?.legs_xp || 0) +
+                    (userStats?.shoulders_xp || 0) +
+                    (userStats?.arms_xp || 0) +
+                    (userStats?.core_xp || 0) +
+                    (userStats?.cardio_xp || 0)
+                  ) / 7)
+                ).logo} 
+                style={styles.currencyIcon}
+                resizeMode="contain"
+              />
+              <ThemedText style={styles.statText}>
+                {getRankInfo(
+                  Math.floor((
+                    (userStats?.chest_xp || 0) +
+                    (userStats?.back_xp || 0) +
+                    (userStats?.legs_xp || 0) +
+                    (userStats?.shoulders_xp || 0) +
+                    (userStats?.arms_xp || 0) +
+                    (userStats?.core_xp || 0) +
+                    (userStats?.cardio_xp || 0)
+                  ) / 7)
+                ).name}
+              </ThemedText>
+            </View>
             <View style={styles.statItem}>
               <Image 
                 source={require('@/assets/images/logos/xp.png')} 
@@ -392,6 +446,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    padding: 8,
+    borderRadius: 8,
   },
   statText: {
     fontSize: 16,
@@ -413,6 +470,5 @@ const styles = StyleSheet.create({
   currencyIcon: {
     width: 20,
     height: 20,
-    marginRight: 4,
   },
 }); 
