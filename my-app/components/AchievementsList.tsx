@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { Ionicons } from '@expo/vector-icons';
 
 type Achievement = {
   id: string;
@@ -15,6 +16,7 @@ type Achievement = {
   item_id: string | null;
   is_unlocked: boolean;
   unlocked_at: string | null;
+  itemName?: string | null;
 };
 
 type UserStats = {
@@ -128,7 +130,7 @@ export function AchievementsList() {
             try {
               // First check if the user already has this item
               const { data: existingItem, error: checkItemError } = await supabase
-                .from('user_inventory')
+                .from('inventory')
                 .select('*')
                 .eq('user_id', user?.id)
                 .eq('item_id', achievement.item_id)
@@ -142,11 +144,11 @@ export function AchievementsList() {
               // If item doesn't exist, add it
               if (!existingItem) {
                 const { error: inventoryError } = await supabase
-                  .from('user_inventory')
+                  .from('inventory')
                   .insert({
                     user_id: user?.id,
                     item_id: achievement.item_id,
-                    is_equipped: false
+                    quantity: 1
                   });
 
                 if (inventoryError) {
@@ -159,6 +161,18 @@ export function AchievementsList() {
                     hint: inventoryError.hint
                   });
                   throw inventoryError;
+                }
+              } else {
+                // If item exists, increment quantity
+                const { error: updateError } = await supabase
+                  .from('inventory')
+                  .update({ quantity: existingItem.quantity + 1 })
+                  .eq('user_id', user?.id)
+                  .eq('item_id', achievement.item_id);
+
+                if (updateError) {
+                  console.error('Error updating item quantity:', updateError);
+                  throw updateError;
                 }
               }
             } catch (itemError: any) {
@@ -200,25 +214,29 @@ export function AchievementsList() {
 
   const fetchAchievements = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: achievementsData, error } = await supabase
         .from('achievements')
         .select(`
           *,
+          items!achievements_item_id_fkey (
+            name
+          ),
           user_achievements!left (
             unlocked_at
           )
         `)
-        .eq('user_achievements.user_id', user?.id);
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      const transformedData = data.map(achievement => ({
+      const achievements = achievementsData.map(achievement => ({
         ...achievement,
         is_unlocked: !!achievement.user_achievements?.[0],
-        unlocked_at: achievement.user_achievements?.[0]?.unlocked_at || null
+        unlocked_at: achievement.user_achievements?.[0]?.unlocked_at || null,
+        itemName: achievement.items?.name || null
       }));
 
-      setAchievements(transformedData);
+      setAchievements(achievements);
     } catch (error) {
       console.error('Error fetching achievements:', error);
     } finally {
@@ -226,36 +244,39 @@ export function AchievementsList() {
     }
   };
 
-  const renderAchievement = ({ item }: { item: Achievement }) => (
-    <ThemedView style={styles.achievementCard}>
-      <View style={styles.achievementHeader}>
-        <View style={styles.achievementInfo}>
-          <ThemedText style={styles.achievementTitle}>
-            {item.is_unlocked ? item.title : '???'}
-          </ThemedText>
-          <ThemedText style={styles.achievementDescription}>
-            {item.description}
-          </ThemedText>
-          {item.item_id && (
-            <ThemedText style={styles.itemUnlockText}>
-              Item Unlock: {item.is_unlocked ? 'Unlocked!' : '???'}
+  const renderAchievement = ({ item }: { item: Achievement }) => {
+    const isUnlocked = item.is_unlocked;
+    const itemName = item.itemName;
+
+    return (
+      <ThemedView style={styles.achievementCard}>
+        <View style={styles.achievementContent}>
+          <View style={styles.achievementInfo}>
+            <ThemedText style={styles.achievementTitle}>
+              {isUnlocked ? item.title : '???'}
             </ThemedText>
+            <ThemedText style={styles.achievementDescription}>
+              {item.description}
+            </ThemedText>
+            {item.item_id && (
+              <ThemedText style={styles.itemUnlockText}>
+                Item Unlock: {isUnlocked ? itemName : '???'}
+              </ThemedText>
+            )}
+          </View>
+          {item.item_id && (
+            <View style={styles.questionMarkContainer}>
+              <Ionicons 
+                name="help-circle-outline" 
+                size={24} 
+                color={Colors[colorScheme].text} 
+              />
+            </View>
           )}
         </View>
-        <View style={styles.lockedImage}>
-          {item.is_unlocked && item.item_id ? (
-            <Image
-              source={{ uri: `https://your-image-bucket-url.com/items/${item.item_id}.png` }}
-              style={styles.itemImage}
-              resizeMode="contain"
-            />
-          ) : (
-            <ThemedText style={styles.lockedText}>?</ThemedText>
-          )}
-        </View>
-      </View>
-    </ThemedView>
-  );
+      </ThemedView>
+    );
+  };
 
   const UnlockModal = () => (
     <Modal
@@ -339,7 +360,7 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  achievementHeader: {
+  achievementContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -363,23 +384,13 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     color: Colors[colorScheme].tint,
     fontWeight: '600',
   },
-  lockedImage: {
+  questionMarkContainer: {
     width: 50,
     height: 50,
     backgroundColor: Colors[colorScheme].placeholderText,
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  lockedText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors[colorScheme].background,
-  },
-  itemImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
   },
   modalOverlay: {
     flex: 1,

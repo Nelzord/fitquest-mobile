@@ -36,31 +36,20 @@ const slotPositions = {
 // need to fix this bug with images loading separately
 export const getItemImage = (itemName: string): ImageSourcePropType => {
   const imageMap: Record<string, ImageSourcePropType> = {
-    'Sweatband': require('@/assets/images/items/sweatband.png'),
-    'Basic Sneakers': require('@/assets/images/items/basic_sneakers.png'),
-    'Cowboy Hat': require('@/assets/images/items/cowboy_hat.png'),
-    'Cowboy Vest': require('@/assets/images/items/cowboy_vest.png'),
-    'Cowboy Boots': require('@/assets/images/items/cowboy_boots.png'),
-    'Rice Hat': require('@/assets/images/items/rice_hat.png'),
-    'Iron Sword': require('@/assets/images/items/iron_sword.png'),
-    'Phantom Cloak': require('@/assets/images/items/phantom_cloak.png'),
-    'Golden Crown': require('@/assets/images/items/golden_crown.png'),
-    'sweatband.png': require('../assets/images/items/sweatband.png'),
-        'basic_sneakers.png': require('../assets/images/items/basic_sneakers.png'),
-        'cowboy_hat.png': require('../assets/images/items/cowboy_hat.png'),
-        'cowboy_vest.png': require('../assets/images/items/cowboy_vest.png'),
-        'cowboy_boots.png': require('../assets/images/items/cowboy_boots.png'),
-        'rice_hat.png': require('../assets/images/items/rice_hat.png'),
-        'iron_sword.png': require('../assets/images/items/iron_sword.png'),
-        'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
-        'golden_crown.png': require('../assets/images/items/golden_crown.png'),
-        'training_cap.png': require('../assets/images/items/golden_crown.png'),
-        'hard_work_medal.png': require('../assets/images/items/golden_crown.png'),
-        'leg_day_band.png': require('../assets/images/items/golden_crown.png')
-
+    'Sweatband': require('../assets/images/items/sweatband.png'),
+    'Basic Sneakers': require('../assets/images/items/basic_sneakers.png'),
+    'Cowboy Hat': require('../assets/images/items/cowboy_hat.png'),
+    'Cowboy Vest': require('../assets/images/items/cowboy_vest.png'),
+    'Cowboy Boots': require('../assets/images/items/cowboy_boots.png'),
+    'Rice Hat': require('../assets/images/items/rice_hat.png'),
+    'Iron Sword': require('../assets/images/items/iron_sword.png'),
+    'Phantom Cloak': require('../assets/images/items/phantom_cloak.png'),
+    'Golden Crown': require('../assets/images/items/golden_crown.png'),
+    'Training Cap': require('../assets/images/items/training_cap.png'),
+    'Leg Day Band': require('../assets/images/items/leg_day_band.png'),
+    'Hard Work Medal': require('../assets/images/items/hardwork_medal.png')
   };
-
-  return imageMap[itemName] || require('@/assets/images/items/iron_sword.png');
+  return imageMap[itemName] || require('../assets/images/items/iron_sword.png');
 };
 
 export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) => {

@@ -717,138 +717,41 @@ export default function StartWorkoutScreen() {
         const xpPerSet = 10; // Base XP per set
         const goldPerSet = 2; // Base gold per set
 
-        // Calculate XP and gold for each muscle group separately
-        if (muscleGroups.includes('chest') || muscleGroups.includes('pectoralis')) {
-          const chestXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const xpBonus = item.items?.xp_bonus;
-            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'chest') {
-              return bonus + xpBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          const chestGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const goldBonus = item.items?.gold_bonus;
-            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'chest') {
-              return bonus + goldBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          acc.chest_xp += completedSets * xpPerSet * (1 + chestXPBonus / 100);
-          acc.chest_gold += completedSets * goldPerSet * (1 + chestGoldBonus / 100);
-        }
+        // Determine primary muscle group based on the category the exercise is in
+        const primaryCategory = commonWorkoutsData.categories.find(cat => 
+          cat.exercises.some(ex => ex.name === exercise.name)
+        )?.name.toLowerCase();
 
-        if (muscleGroups.includes('back') || muscleGroups.includes('latissimus') || muscleGroups.includes('rhomboids')) {
-          const backXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+        // Only apply XP to the primary muscle group
+        if (primaryCategory) {
+          const xpBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
             const xpBonus = item.items?.xp_bonus;
-            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'back') {
+            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === primaryCategory) {
               return bonus + xpBonus.bonus;
             }
             return bonus;
           }, 0) : 0;
-          const backGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
+          const goldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
             const goldBonus = item.items?.gold_bonus;
-            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'back') {
+            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === primaryCategory) {
               return bonus + goldBonus.bonus;
             }
             return bonus;
           }, 0) : 0;
-          acc.back_xp += completedSets * xpPerSet * (1 + backXPBonus / 100);
-          acc.back_gold += completedSets * goldPerSet * (1 + backGoldBonus / 100);
-        }
 
-        if (muscleGroups.includes('legs') || muscleGroups.includes('quadriceps') || muscleGroups.includes('glutes') || muscleGroups.includes('hamstrings')) {
-          const legsXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const xpBonus = item.items?.xp_bonus;
-            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'legs') {
-              return bonus + xpBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          const legsGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const goldBonus = item.items?.gold_bonus;
-            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'legs') {
-              return bonus + goldBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          acc.legs_xp += completedSets * xpPerSet * (1 + legsXPBonus / 100);
-          acc.legs_gold += completedSets * goldPerSet * (1 + legsGoldBonus / 100);
-        }
+          // Map category names to the correct stat fields
+          const statField = primaryCategory === 'chest' ? 'chest' :
+                           primaryCategory === 'back' ? 'back' :
+                           primaryCategory === 'legs' ? 'legs' :
+                           primaryCategory === 'shoulders' ? 'shoulders' :
+                           primaryCategory === 'arms' ? 'arms' :
+                           primaryCategory === 'core' ? 'core' :
+                           primaryCategory === 'cardio' ? 'cardio' : null;
 
-        if (muscleGroups.includes('shoulders') || muscleGroups.includes('deltoids')) {
-          const shouldersXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const xpBonus = item.items?.xp_bonus;
-            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'shoulders') {
-              return bonus + xpBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          const shouldersGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const goldBonus = item.items?.gold_bonus;
-            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'shoulders') {
-              return bonus + goldBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          acc.shoulders_xp += completedSets * xpPerSet * (1 + shouldersXPBonus / 100);
-          acc.shoulders_gold += completedSets * goldPerSet * (1 + shouldersGoldBonus / 100);
-        }
-
-        if (muscleGroups.includes('arms') || muscleGroups.includes('biceps') || muscleGroups.includes('triceps')) {
-          const armsXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const xpBonus = item.items?.xp_bonus;
-            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'arms') {
-              return bonus + xpBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          const armsGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const goldBonus = item.items?.gold_bonus;
-            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'arms') {
-              return bonus + goldBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          acc.arms_xp += completedSets * xpPerSet * (1 + armsXPBonus / 100);
-          acc.arms_gold += completedSets * goldPerSet * (1 + armsGoldBonus / 100);
-        }
-
-        if (muscleGroups.includes('core') || muscleGroups.includes('abdominal')) {
-          const coreXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const xpBonus = item.items?.xp_bonus;
-            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'core') {
-              return bonus + xpBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          const coreGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const goldBonus = item.items?.gold_bonus;
-            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'core') {
-              return bonus + goldBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          acc.core_xp += completedSets * xpPerSet * (1 + coreXPBonus / 100);
-          acc.core_gold += completedSets * goldPerSet * (1 + coreGoldBonus / 100);
-        }
-
-        if (muscleGroups.includes('cardio') || muscleGroups.includes('cardiovascular') || muscleGroups.includes('full body')) {
-          const cardioXPBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const xpBonus = item.items?.xp_bonus;
-            if (xpBonus?.muscle_group === 'all' || xpBonus?.muscle_group === 'cardio') {
-              return bonus + xpBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          const cardioGoldBonus = equippedItems?.length ? equippedItems.reduce((bonus, item) => {
-            const goldBonus = item.items?.gold_bonus;
-            if (goldBonus?.muscle_group === 'all' || goldBonus?.muscle_group === 'cardio') {
-              return bonus + goldBonus.bonus;
-            }
-            return bonus;
-          }, 0) : 0;
-          acc.cardio_xp += completedSets * xpPerSet * (1 + cardioXPBonus / 100);
-          acc.cardio_gold += completedSets * goldPerSet * (1 + cardioGoldBonus / 100);
+          if (statField) {
+            acc[`${statField}_xp`] += completedSets * xpPerSet * (1 + xpBonus / 100);
+            acc[`${statField}_gold`] += completedSets * goldPerSet * (1 + goldBonus / 100);
+          }
         }
       }
 

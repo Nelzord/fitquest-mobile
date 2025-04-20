@@ -24,6 +24,7 @@ interface InventoryGridProps {
   onItemPress: (item: Item) => void;
   onEquipItem: (item: Item) => void;
   userGold: number;
+  isShop: boolean;
 }
 
 const rarityColors = {
@@ -42,7 +43,7 @@ const rarityGlowColors = {
   legendary: 'rgba(255, 215, 0, 0.3)'
 };
 
-export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress, onEquipItem, userGold }) => {
+export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress, onEquipItem, userGold, isShop }) => {
   const colorScheme = useColorScheme() ?? 'light';
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -58,9 +59,10 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
         ownershipFilter === 'all' || 
         (ownershipFilter === 'owned' && item.is_owned) || 
         (ownershipFilter === 'not_owned' && !item.is_owned);
-      return matchesSearch && matchesRarity && matchesOwnership;
+      const hasPrice = isShop ? item.price > 0 : true;
+      return matchesSearch && matchesRarity && matchesOwnership && hasPrice;
     });
-  }, [items, searchQuery, selectedRarity, ownershipFilter]);
+  }, [items, searchQuery, selectedRarity, ownershipFilter, isShop]);
 
   const getItemImage = (imagePath: string) => {
     try {
@@ -74,7 +76,10 @@ export const InventoryGrid: React.FC<InventoryGridProps> = ({ items, onItemPress
         'rice_hat.png': require('../assets/images/items/rice_hat.png'),
         'iron_sword.png': require('../assets/images/items/iron_sword.png'),
         'phantom_cloak.png': require('../assets/images/items/phantom_cloak.png'),
-        'golden_crown.png': require('../assets/images/items/golden_crown.png')
+        'golden_crown.png': require('../assets/images/items/golden_crown.png'),
+        'training_cap.png': require('../assets/images/items/training_cap.png'),
+        'leg_day_band.png': require('../assets/images/items/leg_day_band.png'),
+        'hardwork_medal.png': require('../assets/images/items/hardwork_medal.png')
       };
       return images[imagePath] || null;
     } catch (error) {

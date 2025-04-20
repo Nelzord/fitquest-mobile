@@ -258,6 +258,7 @@ export default function InventoryScreen() {
           }}
           onEquipItem={handleEquipItem}
           userGold={userGold}
+          isShop={true}
         />
         {selectedItem && selectedItem.is_owned && (
           <ItemDetailsModal
@@ -290,10 +291,23 @@ export default function InventoryScreen() {
             <ThemedText style={styles(colorScheme).sectionTitle}>Your Items</ThemedText>
             <InventoryGrid
               items={items.filter(item => item.is_owned)}
-              onItemPress={handleEquipItem}
+              onItemPress={(item) => {
+                setSelectedItem(item);
+              }}
               onEquipItem={handleEquipItem}
               userGold={userGold}
+              isShop={false}
             />
+            {selectedItem && (
+              <ItemDetailsModal
+                item={selectedItem}
+                onClose={() => setSelectedItem(null)}
+                onEquip={() => {
+                  handleEquipItem(selectedItem);
+                  setSelectedItem(null);
+                }}
+              />
+            )}
           </View>
         );
     }

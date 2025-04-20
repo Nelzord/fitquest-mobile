@@ -1,96 +1,64 @@
 import React from 'react';
-import { View, Modal, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { ThemedText } from './ThemedText';
-import { useColorScheme } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ThemedView } from './ThemedView';
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { getItemImage } from './EquippedItems';
 
-interface Item {
-  id: string;
-  name: string;
-  slot_type: string;
-  rarity: string;
-  effect: string;
-  image_path: string;
-  is_owned: boolean;
-  is_equipped: boolean;
-}
-
 interface ItemDetailsModalProps {
-  item: Item | null;
+  item: {
+    id: string;
+    name: string;
+    slot_type: string;
+    rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+    effect: string;
+    image_path: string;
+    is_owned: boolean;
+    is_equipped: boolean;
+    price: number;
+  };
   onClose: () => void;
   onEquip: () => void;
 }
 
 export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClose, onEquip }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-
-  if (!item) return null;
-
-  const rarityColors = {
-    common: '#808080',
-    uncommon: '#2E8B57',
-    rare: '#4169E1',
-    epic: '#9932CC',
-    legendary: '#FFD700'
-  };
+  const colorScheme = useColorScheme() ?? 'light';
 
   return (
     <Modal
-      visible={!!item}
-      transparent
+      visible={true}
+      transparent={true}
       animationType="fade"
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={[
-          styles.modalContent,
-          { backgroundColor: isDark ? '#1A1A1A' : '#FFFFFF' }
-        ]}>
-          <View style={styles.header}>
-            <ThemedText style={styles.itemName}>{item.name}</ThemedText>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={isDark ? '#FFFFFF' : '#000000'} />
-            </TouchableOpacity>
-          </View>
-
+        <ThemedView style={styles.modalContent}>
           <View style={styles.itemImageContainer}>
             <Image
-              source={getItemImage(item.image_path)}
+              source={getItemImage(item.name)}
               style={styles.itemImage}
               resizeMode="contain"
             />
           </View>
-
-          <View style={styles.detailsContainer}>
-            <View style={[
-              styles.rarityBadge,
-              { backgroundColor: rarityColors[item.rarity as keyof typeof rarityColors] }
-            ]}>
-              <ThemedText style={styles.rarityText}>{item.rarity}</ThemedText>
-            </View>
-
-            <View style={styles.effectContainer}>
-              <ThemedText style={styles.effectLabel}>Effect:</ThemedText>
-              <ThemedText style={styles.effectText}>{item.effect}</ThemedText>
-            </View>
-
-            {item.is_owned && !item.is_equipped && (
-              <TouchableOpacity
-                style={[
-                  styles.equipButton,
-                  { backgroundColor: '#2196F3' }
-                ]}
-                onPress={onEquip}
-              >
-                <ThemedText style={styles.equipButtonText}>
-                  Equip
-                </ThemedText>
-              </TouchableOpacity>
-            )}
+          <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+          <ThemedText style={styles.itemRarity}>{item.rarity}</ThemedText>
+          <ThemedText style={styles.itemEffect}>{item.effect}</ThemedText>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]}
+              onPress={onEquip}
+            >
+              <ThemedText style={styles.buttonText}>Equip</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: Colors[colorScheme].borderColor }]}
+              onPress={onClose}
+            >
+              <ThemedText style={styles.buttonText}>Close</ThemedText>
+            </TouchableOpacity>
           </View>
-        </View>
+        </ThemedView>
       </View>
     </Modal>
   );
@@ -114,19 +82,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  itemName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    padding: 4,
-  },
   itemImageContainer: {
     width: '100%',
     aspectRatio: 1,
@@ -140,37 +95,30 @@ const styles = StyleSheet.create({
     width: '80%',
     height: '80%',
   },
-  detailsContainer: {
-    gap: 16,
+  itemName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
-  rarityBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  rarityText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  effectContainer: {
-    gap: 8,
-  },
-  effectLabel: {
+  itemRarity: {
     fontSize: 16,
     fontWeight: '600',
   },
-  effectText: {
+  itemEffect: {
     fontSize: 14,
     lineHeight: 20,
   },
-  equipButton: {
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
   },
-  equipButtonText: {
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  buttonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
