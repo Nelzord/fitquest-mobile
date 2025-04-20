@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
+import { getItemImage } from './EquippedItems';
 
 type Achievement = {
   id: string;
@@ -251,7 +252,18 @@ export function AchievementsList() {
     return (
       <ThemedView style={styles.achievementCard}>
         <View style={styles.achievementContent}>
-          <View style={styles.achievementInfo}>
+          <View style={styles.achievementIconContainer}>
+            {isUnlocked && itemName ? (
+              <Image
+                source={getItemImage(itemName)}
+                style={styles.achievementIcon}
+                resizeMode="contain"
+              />
+            ) : (
+              <ThemedText style={styles.questionMark}>?</ThemedText>
+            )}
+          </View>
+          <View style={styles.achievementTextContainer}>
             <ThemedText style={styles.achievementTitle}>
               {isUnlocked ? item.title : '???'}
             </ThemedText>
@@ -264,15 +276,6 @@ export function AchievementsList() {
               </ThemedText>
             )}
           </View>
-          {item.item_id && (
-            <View style={styles.questionMarkContainer}>
-              <Ionicons 
-                name="help-circle-outline" 
-                size={24} 
-                color={Colors[colorScheme].text} 
-              />
-            </View>
-          )}
         </View>
       </ThemedView>
     );
@@ -299,7 +302,7 @@ export function AchievementsList() {
               {unlockedAchievement.item_id && (
                 <View style={styles.modalItemContainer}>
                   <Image
-                    source={{ uri: `https://your-image-bucket-url.com/items/${unlockedAchievement.item_id}.png` }}
+                    source={getItemImage(unlockedAchievement.itemName || '')}
                     style={styles.modalItemImage}
                     resizeMode="contain"
                   />
@@ -365,9 +368,26 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  achievementInfo: {
-    flex: 1,
+  achievementIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 16,
+  },
+  achievementIcon: {
+    width: 40,
+    height: 40,
+  },
+  questionMark: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors[colorScheme].text,
+  },
+  achievementTextContainer: {
+    flex: 1,
   },
   achievementTitle: {
     fontSize: 18,
@@ -383,14 +403,6 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontSize: 14,
     color: Colors[colorScheme].tint,
     fontWeight: '600',
-  },
-  questionMarkContainer: {
-    width: 50,
-    height: 50,
-    backgroundColor: Colors[colorScheme].placeholderText,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
