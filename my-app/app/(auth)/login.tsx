@@ -7,12 +7,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Colors } from '@/constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
-  const { login, loginAsGuest } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const colorScheme = useRNColorScheme() ?? 'light';
   const insets = useSafeAreaInsets();
   const styles = getStyles(colorScheme);
@@ -20,18 +21,16 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     try {
       await login(email, password);
-      router.replace('/(tabs)');
     } catch (error) {
-      Alert.alert('Error', 'Failed to login. Please try again.');
+      console.error('Login error:', error);
     }
   };
 
-  const handleGuestLogin = async () => {
+  const handleGoogleLogin = async () => {
     try {
-      await loginAsGuest();
-      router.replace('/(tabs)');
+      await loginWithGoogle();
     } catch (error) {
-      Alert.alert('Error', 'Failed to login as guest. Please try again.');
+      console.error('Google login error:', error);
     }
   };
 
@@ -44,14 +43,14 @@ export default function LoginScreen() {
           <ThemedText style={styles.subtitle}>Track your fitness journey</ThemedText>
         </View>
         
-        <View style={styles.inputContainer}>
+        <View style={styles.form}>
           <TextInput
             style={styles.input}
             placeholder="Email"
             value={email}
             onChangeText={setEmail}
-            autoCapitalize="none"
             keyboardType="email-address"
+            autoCapitalize="none"
             placeholderTextColor={Colors[colorScheme].placeholderText}
           />
           <TextInput
@@ -62,29 +61,29 @@ export default function LoginScreen() {
             secureTextEntry
             placeholderTextColor={Colors[colorScheme].placeholderText}
           />
-        </View>
+          <TouchableOpacity style={styles.button} onPress={handleLogin}>
+            <ThemedText style={styles.buttonText}>Sign In</ThemedText>
+          </TouchableOpacity>
+          
+          <View style={styles.divider}>
+            <View style={styles.line} />
+            <ThemedText style={styles.dividerText}>OR</ThemedText>
+            <View style={styles.line} />
+          </View>
 
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={handleLogin}
-        >
-          <ThemedText style={styles.buttonText}>Login</ThemedText>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
+            <MaterialCommunityIcons name="google" size={24} color="white" />
+            <ThemedText style={styles.googleButtonText}>Sign in with Google</ThemedText>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.guestButton} 
-          onPress={handleGuestLogin}
-        >
-          <ThemedText style={styles.guestButtonText}>Continue as Guest</ThemedText>
-        </TouchableOpacity>
-
-        <View style={styles.signupContainer}>
-          <ThemedText>Don't have an account? </ThemedText>
-          <Link href="/(auth)/signup" asChild>
-            <TouchableOpacity>
-              <ThemedText style={styles.signupLink}>Sign Up</ThemedText>
-            </TouchableOpacity>
-          </Link>
+          <TouchableOpacity
+            style={styles.signupLink}
+            onPress={() => router.push('/(auth)/signup')}
+          >
+            <ThemedText style={styles.signupText}>
+              Don't have an account? <ThemedText style={styles.signupTextBold}>Sign up</ThemedText>
+            </ThemedText>
+          </TouchableOpacity>
         </View>
       </View>
     </ThemedView>
@@ -115,9 +114,8 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     color: Colors[colorScheme].placeholderText,
     textAlign: 'center',
   },
-  inputContainer: {
+  form: {
     gap: 15,
-    marginBottom: 20,
   },
   input: {
     height: 50,
@@ -134,34 +132,50 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     padding: 15,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 15,
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  guestButton: {
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors[colorScheme].border,
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: Colors[colorScheme].placeholderText,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4285F4',
     padding: 15,
     borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors[colorScheme].tint,
-    marginBottom: 15,
+    gap: 10,
   },
-  guestButtonText: {
-    color: Colors[colorScheme].tint,
+  googleButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  signupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
   signupLink: {
-    color: Colors[colorScheme].tint,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  signupText: {
+    fontSize: 16,
+    color: Colors[colorScheme].placeholderText,
+  },
+  signupTextBold: {
     fontWeight: 'bold',
+    color: Colors[colorScheme].tint,
   },
 }); 

@@ -2,13 +2,16 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import { makeRedirectUri } from 'expo-auth-session';
+import { useRouter } from 'expo-router';
 
 type AuthContextType = {
   isAuthenticated: boolean;
-  isGuest: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
-  loginAsGuest: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
   user: any;
@@ -18,46 +21,49 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      console.log('🔍 Starting auth status check...');
-      const { data: { session }, error } = await supabase.auth.getSession();
+    // Handle the redirect back to the app
+    WebBrowser.maybeCompleteAuthSession();
+    
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
       
-      if (error) {
-        console.error('❌ Error getting session:', error);
-        throw error;
-      }
-      
-      if (session) {
-        console.log('✅ Session found:', {
-          userId: session.user.id,
-          email: session.user.email,
-          expiresAt: session.expires_at
-        });
+      if (event === 'SIGNED_IN' && session) {
+        console.log('User signed in:', session.user.email);
         setUser(session.user);
         setIsAuthenticated(true);
-        setIsGuest(false);
-      } else {
-        console.log('⚠️ No active session found');
-        const guestStatus = await AsyncStorage.getItem('is_guest');
-        console.log('Guest status:', guestStatus);
-        setIsGuest(guestStatus === 'true');
+        // Ensure we're on the main thread before navigation
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 0);
+      } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out');
+        setUser(null);
+        setIsAuthenticated(false);
+        router.replace('/(auth)/login');
       }
-    } catch (error) {
-      console.error('❌ Error in checkAuthStatus:', error);
-    } finally {
-      console.log('🏁 Auth check completed');
+    });
+
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        console.log('Initial session found:', session.user.email);
+        setUser(session.user);
+        setIsAuthenticated(true);
+        router.replace('/(tabs)');
+      }
       setLoading(false);
-    }
-  };
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
     try {
@@ -70,8 +76,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(data.user);
       setIsAuthenticated(true);
-      setIsGuest(false);
-      await AsyncStorage.setItem('is_guest', 'false');
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -80,7 +84,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (email: string, password: string) => {
     try {
-      // First, sign up the user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -88,21 +91,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      // The trigger will automatically create the user record in the users table
-      // We can update the user record with additional information if needed
       if (data.user) {
         const { error: updateError } = await supabase
           .from('users')
           .update({
-            email: data.user.email ?? email, // Use provided email if user.email is undefined
-            name: (data.user.email ?? email).split('@')[0], // Set a default name from email
+            email: data.user.email ?? email,
+            name: (data.user.email ?? email).split('@')[0],
             updated_at: new Date().toISOString(),
           })
           .eq('id', data.user.id);
 
         if (updateError) throw updateError;
 
-        // Create initial user stats record
         const { error: statsError } = await supabase
           .from('user_stats')
           .insert({
@@ -125,22 +125,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(data.user);
       setIsAuthenticated(true);
-      setIsGuest(false);
-      await AsyncStorage.setItem('is_guest', 'false');
     } catch (error) {
       console.error('Signup error:', error);
       throw error;
     }
   };
 
-  const loginAsGuest = async () => {
+  const loginWithGoogle = async () => {
     try {
-      await AsyncStorage.setItem('is_guest', 'true');
-      setIsGuest(true);
-      setIsAuthenticated(false);
-      setUser(null);
+      const redirectUrl = 'fitquest://login-callback';
+      
+      console.log('Starting Google Sign-In with redirect URL:', redirectUrl);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true
+        }
+      });
+
+      if (error) {
+        console.error('Supabase OAuth error:', error);
+        throw error;
+      }
+
+      if (data?.url) {
+        console.log('Opening auth session with URL:', data.url);
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUrl,
+          {
+            showInRecents: true,
+            preferEphemeralSession: false
+          }
+        );
+        
+        console.log('Auth session result:', result);
+        
+        if (result.type === 'success' && result.url) {
+          // Extract the access token from the URL
+          const accessToken = result.url.split('access_token=')[1]?.split('&')[0];
+          if (accessToken) {
+            console.log('Access token received, setting session...');
+            // Set the session using the access token
+            const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: result.url.split('refresh_token=')[1]?.split('&')[0] || '',
+            });
+            
+            if (sessionError) {
+              console.error('Error setting session:', sessionError);
+              throw sessionError;
+            }
+            
+            if (session) {
+              console.log('Session set successfully, redirecting...');
+              setUser(session.user);
+              setIsAuthenticated(true);
+              router.replace('/(tabs)');
+            }
+          }
+        } else {
+          console.log('Auth session failed or was cancelled');
+        }
+      } else {
+        console.error('No auth URL returned from Supabase');
+      }
     } catch (error) {
-      console.error('Guest login error:', error);
+      console.error('Error signing in with Google:', error);
       throw error;
     }
   };
@@ -150,10 +203,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
-      await AsyncStorage.removeItem('is_guest');
       setIsAuthenticated(false);
-      setIsGuest(false);
       setUser(null);
+      router.replace('/(auth)/login');
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
@@ -164,10 +216,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         isAuthenticated,
-        isGuest,
         login,
         signup,
-        loginAsGuest,
+        loginWithGoogle,
         logout,
         loading,
         user,

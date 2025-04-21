@@ -1,0 +1,10 @@
+android {
+    // ... existing code ...
+    defaultConfig {
+        // ... existing config ...
+        manifestPlaceholders = [
+            'appAuthRedirectScheme': 'com.googleusercontent.apps.YOUR_CLIENT_ID'
+        ]
+    }
+    // ... rest of the existing code ...
+} 
