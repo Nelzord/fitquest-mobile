@@ -26,7 +26,7 @@ const RANKS: RankInfo[] = [
   { name: 'Gold', logo: require('@/assets/images/logos/goldrank.png'), color: '#FFD700', minXP: 150, letter: 'C' },
   { name: 'Platinum', logo: require('@/assets/images/logos/platinumrank.png'), color: '#E5E4E2', minXP: 300, letter: 'B' },
   { name: 'Diamond', logo: require('@/assets/images/logos/diamondrank.png'), color: '#B9F2FF', minXP: 500, letter: 'A' },
-  { name: 'Master', logo: require('@/assets/images/logos/masterrank.png'), color: '#FF4500', minXP: 700, letter: 'S' },
+  { name: 'Master', logo: require('@/assets/images/logos/masterrank.png'), color: '#9932CC', minXP: 700, letter: 'S' },
   { name: 'Legend', logo: require('@/assets/images/logos/legendrank.png'), color: '#FF0000', minXP: 900, letter: 'SS' },
 ];
 

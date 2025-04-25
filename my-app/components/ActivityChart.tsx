@@ -10,8 +10,6 @@ interface ActivityChartProps {
   data: { date: string; count: number }[];
   onDayPress?: (date: string) => void;
   selectedDate?: string;
-  isExpanded?: boolean;
-  onToggleExpand?: () => void;
 }
 
 interface SquareData {
@@ -30,9 +28,7 @@ const LEGEND_SQUARE_SIZE = 8;
 export const ActivityChart: React.FC<ActivityChartProps> = ({
   data,
   onDayPress,
-  selectedDate,
-  isExpanded = true,
-  onToggleExpand
+  selectedDate
 }) => {
   const colorScheme = useColorScheme() ?? 'light';
   const today = new Date();
@@ -72,59 +68,47 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
 
   return (
     <ThemedView style={styles.container}>
-      <TouchableOpacity 
-        style={styles.header}
-        onPress={onToggleExpand}
-      >
+      <View style={styles.header}>
         <ThemedText style={styles.title}>Past 30 Days</ThemedText>
-        <IconSymbol 
-          name={isExpanded ? "chevron.up" : "chevron.down"} 
-          size={20} 
-          color={Colors[colorScheme].text}
-        />
-      </TouchableOpacity>
+      </View>
 
-      {isExpanded && (
-        <>
-          <View style={styles.chartContainer}>
-            {rows.map((row, rowIndex) => (
-              <View key={rowIndex} style={styles.row}>
-                {row.map((item, colIndex) => (
-                  <TouchableOpacity
-                    key={`${rowIndex}-${colIndex}`}
-                    disabled={!item.date}
-                    onPress={() => item.date && onDayPress?.(item.date)}
-                    style={[
-                      styles.square,
-                      {
-                        backgroundColor: getColor(item.count),
-                        borderWidth: item.date && selectedDate === item.date ? 2 : 0,
-                        borderColor: Colors[colorScheme].tint,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
+      <View style={styles.chartContainer}>
+        {rows.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.row}>
+            {row.map((item, colIndex) => (
+              <TouchableOpacity
+                key={`${rowIndex}-${colIndex}`}
+                disabled={!item.date}
+                onPress={() => item.date && onDayPress?.(item.date)}
+                style={[
+                  styles.square,
+                  {
+                    backgroundColor: getColor(item.count),
+                    borderWidth: item.date && selectedDate === item.date ? 2 : 0,
+                    borderColor: Colors[colorScheme].tint,
+                  },
+                ]}
+              />
             ))}
           </View>
+        ))}
+      </View>
 
-          <View style={styles.legend}>
-            <ThemedText style={styles.legendText}>Less</ThemedText>
-            <View style={styles.legendSquares}>
-              {[0, 2, 4, 6, 8].map((count) => (
-                <View
-                  key={count}
-                  style={[
-                    styles.legendSquare,
-                    { backgroundColor: getColor(count) },
-                  ]}
-                />
-              ))}
-            </View>
-            <ThemedText style={styles.legendText}>More</ThemedText>
-          </View>
-        </>
-      )}
+      <View style={styles.legend}>
+        <ThemedText style={styles.legendText}>Less</ThemedText>
+        <View style={styles.legendSquares}>
+          {[0, 2, 4, 6, 8].map((count) => (
+            <View
+              key={count}
+              style={[
+                styles.legendSquare,
+                { backgroundColor: getColor(count) },
+              ]}
+            />
+          ))}
+        </View>
+        <ThemedText style={styles.legendText}>More</ThemedText>
+      </View>
     </ThemedView>
   );
 };
@@ -136,9 +120,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 12,
   },
   title: {

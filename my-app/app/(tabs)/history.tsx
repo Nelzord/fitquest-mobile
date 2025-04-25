@@ -171,11 +171,11 @@ export default function HistoryScreen() {
       const totalDuration = workouts?.reduce((sum, workout) => sum + (workout.duration || 0), 0) || 0;
       const totalExercises = workouts?.reduce((sum, workout) => sum + (workout.exercises?.length || 0), 0) || 0;
       const totalSets = workouts?.reduce((sum, workout) => 
-        sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
+          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
           exerciseSum + (exercise.sets?.length || 0), 0) || 0), 0) || 0;
       const totalVolume = workouts?.reduce((sum, workout) => 
-        sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
-          exerciseSum + (exercise.sets?.reduce((setSum, set) => 
+          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
+            exerciseSum + (exercise.sets?.reduce((setSum, set) => 
             setSum + ((set.weight || 0) * (set.reps || 0)), 0) || 0), 0) || 0), 0) || 0;
 
       // Calculate favorite exercise
@@ -631,6 +631,29 @@ export default function HistoryScreen() {
             </View>
           )}
         </View>
+
+        {progressionData.length > 0 && (
+          <View style={styles.progressionTable}>
+            <View style={styles.tableHeader}>
+              <ThemedText style={styles.tableHeaderText}>Date</ThemedText>
+              <ThemedText style={styles.tableHeaderText}>
+                {progressionMetric === 'volume' ? 'Volume' : progressionMetric === 'reps' ? 'Reps' : 'Max Weight'}
+              </ThemedText>
+            </View>
+            <ScrollView style={styles.tableBody}>
+              {progressionData.map((item, index) => (
+                <View key={index} style={styles.tableRow}>
+                  <ThemedText style={styles.tableCell}>
+                    {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </ThemedText>
+                  <ThemedText style={styles.tableCell}>
+                    {item.value.toLocaleString()}
+                  </ThemedText>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
     );
   };
@@ -674,24 +697,24 @@ export default function HistoryScreen() {
       case 'activity':
         return (
           <View style={styles.tabContent}>
-            <ActivityChart 
-              data={activityData} 
-              onDayPress={handleDayPress}
-              selectedDate={selectedDate || undefined}
-            />
+      <ActivityChart 
+        data={activityData} 
+        onDayPress={handleDayPress}
+        selectedDate={selectedDate || undefined}
+      />
             <View style={styles.historyHeader}>
-              <ThemedText style={styles.title}>
-                {selectedDate 
-                  ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
-                  : 'History'
-                }
-              </ThemedText>
-              <TouchableOpacity
-                style={styles.filterButton}
-                onPress={() => setShowFilterModal(true)}
-              >
-                <IconSymbol name="line.3.horizontal.decrease.circle" size={24} color={Colors[colorScheme].tint} />
-              </TouchableOpacity>
+          <ThemedText style={styles.title}>
+            {selectedDate 
+              ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
+              : 'History'
+            }
+          </ThemedText>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <IconSymbol name="line.3.horizontal.decrease.circle" size={24} color={Colors[colorScheme].tint} />
+        </TouchableOpacity>
             </View>
             <FlatList
               data={showAllWorkouts ? filteredWorkouts : filteredWorkouts.slice(0, 5)}
@@ -729,7 +752,7 @@ export default function HistoryScreen() {
               }
             />
           </View>
-        );
+  );
       case 'stats':
         return (
           <View style={styles.tabContent}>
@@ -1148,6 +1171,38 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontSize: 12,
     opacity: 0.7,
     marginTop: 4,
+    textAlign: 'center',
+  },
+  progressionTable: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].border,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    padding: 12,
+    backgroundColor: Colors[colorScheme].tint + '20',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].border,
+  },
+  tableHeaderText: {
+    flex: 1,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  tableBody: {
+    maxHeight: 200,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].border,
+  },
+  tableCell: {
+    flex: 1,
     textAlign: 'center',
   },
 }); 
