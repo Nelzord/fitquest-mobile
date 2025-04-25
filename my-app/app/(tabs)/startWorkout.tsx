@@ -56,6 +56,13 @@ interface Exercise {
   sets: Set[]; // Can represent sets or timed entries
 }
 
+interface Workout {
+  id: string;
+  created_at: string;
+  notes?: string;
+  exercises: Exercise[];
+}
+
 interface ItemBonus {
   muscle_group: string;
   bonus: number;
@@ -493,6 +500,8 @@ export default function StartWorkoutScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [time, setTime] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isDurationFilterVisible, setDurationFilterVisible] = useState(false);
@@ -1071,6 +1080,69 @@ export default function StartWorkoutScreen() {
     setTime(0);
   };
 
+  // Add function to fetch recent workouts
+  const fetchRecentWorkouts = async () => {
+    if (!user) return;
+    
+    try {
+      const { data: workouts, error } = await supabase
+        .from('workouts')
+        .select(`
+          id,
+          created_at,
+          notes,
+          exercises (
+            id,
+            name,
+            type,
+            sets (
+              id,
+              reps,
+              weight,
+              duration,
+              distance,
+              completed
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setRecentWorkouts(workouts || []);
+    } catch (error) {
+      console.error('Error fetching recent workouts:', error);
+    }
+  };
+
+  // Add function to import a workout
+  const importWorkout = (workout: Workout) => {
+    const importedExercises = workout.exercises.map(exercise => ({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      name: exercise.name,
+      type: exercise.type,
+      sets: exercise.sets.map(set => ({
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        completed: false,
+        reps: set.reps?.toString() || '',
+        weight: set.weight?.toString() || '',
+        duration: set.duration?.toString() || '',
+        distance: set.distance?.toString() || ''
+      }))
+    }));
+
+    setExercises(importedExercises);
+    setNotes(workout.notes || '');
+    setShowImportModal(false);
+    setIsWorkoutActive(true);
+  };
+
+  // Add useEffect to fetch recent workouts when component mounts
+  useEffect(() => {
+    fetchRecentWorkouts();
+  }, []);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -1089,13 +1161,22 @@ export default function StartWorkoutScreen() {
           />
 
           {!isWorkoutActive ? (
-            <View style={styles.startButtonContainer}>
+            <View style={styles.startButtonsContainer}>
               <TouchableOpacity 
                 style={styles.startButton}
                 onPress={startWorkout}
                 activeOpacity={0.7}
               >
                 <ThemedText style={styles.startButtonText}>Start Workout</ThemedText>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.importButton}
+                onPress={() => setShowImportModal(true)}
+                activeOpacity={0.7}
+              >
+                <IconSymbol name="arrow.down.circle" size={20} color={Colors[colorScheme].tint} />
+                <ThemedText style={styles.importButtonText}>Import Previous Routine</ThemedText>
               </TouchableOpacity>
             </View>
           ) : (
@@ -1144,6 +1225,42 @@ export default function StartWorkoutScreen() {
           )}
         </ThemedView>
       </TouchableWithoutFeedback>
+
+      {/* Add Import Modal */}
+      <Modal
+        visible={showImportModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <ThemedView style={styles.importModal}>
+            <ThemedText style={styles.importModalTitle}>Select a Previous Workout</ThemedText>
+            <ScrollView style={styles.importModalList}>
+              {recentWorkouts.map((workout) => (
+                <TouchableOpacity
+                  key={workout.id}
+                  style={styles.importWorkoutItem}
+                  onPress={() => importWorkout(workout)}
+                >
+                  <ThemedText style={styles.importWorkoutDate}>
+                    {new Date(workout.created_at).toLocaleDateString()}
+                  </ThemedText>
+                  <ThemedText style={styles.importWorkoutExercises}>
+                    {workout.exercises.length} exercises
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.importModalCloseButton}
+              onPress={() => setShowImportModal(false)}
+            >
+              <ThemedText style={styles.importModalCloseButtonText}>Cancel</ThemedText>
+            </TouchableOpacity>
+          </ThemedView>
+        </View>
+      </Modal>
 
       <Modal
         animationType="slide"
@@ -1671,10 +1788,11 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  startButtonContainer: {
+  startButtonsContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 15,
   },
   startButton: {
     flexDirection: 'row',
@@ -1693,5 +1811,63 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     marginLeft: 12,
     fontWeight: 'bold',
     fontSize: 20,
+  },
+  importButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 25,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors[colorScheme].tint,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  importButtonText: {
+    color: Colors[colorScheme].tint,
+    marginLeft: 8,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  importModal: {
+    width: '80%',
+    maxHeight: '80%',
+    backgroundColor: Colors[colorScheme].cardBackground,
+    borderRadius: 12,
+    padding: 20,
+  },
+  importModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  importModalList: {
+    maxHeight: '70%',
+  },
+  importWorkoutItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
+  },
+  importWorkoutDate: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  importWorkoutExercises: {
+    fontSize: 14,
+    color: Colors[colorScheme].placeholderText,
+    marginTop: 4,
+  },
+  importModalCloseButton: {
+    marginTop: 15,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    alignItems: 'center',
+  },
+  importModalCloseButtonText: {
+    color: Colors[colorScheme].text,
+    fontWeight: '600',
   },
 }); 
