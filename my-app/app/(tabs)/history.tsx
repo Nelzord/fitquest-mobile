@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, FlatList, ActivityIndicator, Modal, ScrollView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, FlatList, ActivityIndicator, Modal, ScrollView, Dimensions } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -11,6 +11,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActivityChart } from '@/components/ActivityChart';
 import { Ionicons } from '@expo/vector-icons';
+import { LineChart } from 'react-native-chart-kit';
 
 type Workout = {
   id: string;
@@ -27,13 +28,36 @@ type FilterOptions = {
   order: 'asc' | 'desc';
 };
 
-interface WorkoutStats {
+type WorkoutStats = {
   totalWorkouts: number;
   totalDuration: number;
   totalExercises: number;
   totalSets: number;
   totalVolume: number;
-}
+  favoriteExercise: string;
+  highestVolumeSession: {
+    volume: number;
+    date: string;
+  };
+  longestSession: {
+    duration: number;
+    date: string;
+  };
+};
+
+type ProgressionMetric = 'volume' | 'reps' | 'maxWeight';
+type Exercise = {
+  id: string;
+  name: string;
+};
+
+type ProgressionData = {
+  date: string;
+  value: number;
+};
+
+type TimeRange = '5' | '10' | '30';
+type SetRange = '5' | '10' | '20';
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
@@ -55,6 +79,7 @@ export default function HistoryScreen() {
     sortBy: 'date',
     order: 'desc'
   });
+  const [activeTab, setActiveTab] = useState<'activity' | 'stats' | 'progression'>('activity');
   const { user } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
   const router = useRouter();
@@ -62,21 +87,33 @@ export default function HistoryScreen() {
   const styles = getStyles(colorScheme);
   const [activityData, setActivityData] = useState<{ date: string; count: number }[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [isChartExpanded, setIsChartExpanded] = useState(true);
-  const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
-  const [isStatsExpanded, setIsStatsExpanded] = useState(true);
   const [stats, setStats] = useState<WorkoutStats | null>(null);
+  const [progressionMetric, setProgressionMetric] = useState<ProgressionMetric>('volume');
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [progressionData, setProgressionData] = useState<ProgressionData[]>([]);
+  const [showExercisePicker, setShowExercisePicker] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>('30');
+  const [uniqueExercises, setUniqueExercises] = useState<Exercise[]>([]);
+  const [setRange, setSetRange] = useState<SetRange>('10');
 
   useEffect(() => {
     if (user) {
       fetchWorkouts();
       fetchWorkoutStats();
+      fetchExercises();
     }
   }, [user]);
 
   useEffect(() => {
     applyFilters();
   }, [workouts, filterOptions, selectedDate]);
+
+  useEffect(() => {
+    if (activeTab === 'progression') {
+      fetchProgressionData();
+    }
+  }, [activeTab, progressionMetric, selectedExercise, setRange]);
 
   const fetchWorkouts = async () => {
     try {
@@ -112,9 +149,12 @@ export default function HistoryScreen() {
         .from('workouts')
         .select(`
           id,
+          created_at,
           duration,
           exercises (
             id,
+            name,
+            type,
             sets (
               id,
               weight,
@@ -126,22 +166,188 @@ export default function HistoryScreen() {
 
       if (error) throw error;
 
+      // Calculate basic stats
+      const totalWorkouts = workouts?.length || 0;
+      const totalDuration = workouts?.reduce((sum, workout) => sum + (workout.duration || 0), 0) || 0;
+      const totalExercises = workouts?.reduce((sum, workout) => sum + (workout.exercises?.length || 0), 0) || 0;
+      const totalSets = workouts?.reduce((sum, workout) => 
+        sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
+          exerciseSum + (exercise.sets?.length || 0), 0) || 0), 0) || 0;
+      const totalVolume = workouts?.reduce((sum, workout) => 
+        sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
+          exerciseSum + (exercise.sets?.reduce((setSum, set) => 
+            setSum + ((set.weight || 0) * (set.reps || 0)), 0) || 0), 0) || 0), 0) || 0;
+
+      // Calculate favorite exercise
+      const exerciseCounts = new Map<string, number>();
+      workouts?.forEach(workout => {
+        workout.exercises?.forEach(exercise => {
+          if (exercise.type !== 'cardio') {
+            exerciseCounts.set(exercise.name, (exerciseCounts.get(exercise.name) || 0) + 1);
+          }
+        });
+      });
+      const favoriteExercise = Array.from(exerciseCounts.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0] || 'No exercises';
+
+      // Calculate highest volume session
+      const highestVolumeSession = workouts?.reduce((max, workout) => {
+        const volume = workout.exercises?.reduce((sum, exercise) => 
+          sum + (exercise.sets?.reduce((setSum, set) => 
+            setSum + ((set.weight || 0) * (set.reps || 0)), 0) || 0), 0) || 0;
+        return volume > max.volume ? { volume, date: workout.created_at } : max;
+      }, { volume: 0, date: '' });
+
+      // Calculate longest session
+      const longestSession = workouts?.reduce((max, workout) => {
+        const duration = workout.duration || 0;
+        return duration > max.duration ? { duration, date: workout.created_at } : max;
+      }, { duration: 0, date: '' });
+
       const stats: WorkoutStats = {
-        totalWorkouts: workouts?.length || 0,
-        totalDuration: workouts?.reduce((sum, workout) => sum + (workout.duration || 0), 0) || 0,
-        totalExercises: workouts?.reduce((sum, workout) => sum + (workout.exercises?.length || 0), 0) || 0,
-        totalSets: workouts?.reduce((sum, workout) => 
-          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
-            exerciseSum + (exercise.sets?.length || 0), 0) || 0), 0) || 0,
-        totalVolume: workouts?.reduce((sum, workout) => 
-          sum + (workout.exercises?.reduce((exerciseSum, exercise) => 
-            exerciseSum + (exercise.sets?.reduce((setSum, set) => 
-              setSum + ((set.weight || 0) * (set.reps || 0)), 0) || 0), 0) || 0), 0) || 0,
+        totalWorkouts,
+        totalDuration,
+        totalExercises,
+        totalSets,
+        totalVolume,
+        favoriteExercise,
+        highestVolumeSession: highestVolumeSession || { volume: 0, date: '' },
+        longestSession: longestSession || { duration: 0, date: '' }
       };
 
       setStats(stats);
     } catch (error) {
       console.error('Error fetching workout stats:', error);
+      setStats({
+        totalWorkouts: 0,
+        totalDuration: 0,
+        totalExercises: 0,
+        totalSets: 0,
+        totalVolume: 0,
+        favoriteExercise: 'No exercises',
+        highestVolumeSession: { volume: 0, date: '' },
+        longestSession: { duration: 0, date: '' }
+      });
+    }
+  };
+
+  const fetchExercises = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('id, name, type')
+        .order('name');
+
+      if (error) throw error;
+      
+      // Group exercises by name and keep only one instance of each, excluding cardio
+      const uniqueExercisesMap = new Map<string, Exercise>();
+      data?.forEach(exercise => {
+        if (!uniqueExercisesMap.has(exercise.name) && exercise.type !== 'cardio') {
+          uniqueExercisesMap.set(exercise.name, exercise);
+        }
+      });
+      
+      const exercisesList = Array.from(uniqueExercisesMap.values());
+      setUniqueExercises(exercisesList);
+
+      // Find the most frequent exercise
+      const exerciseCounts = new Map<string, number>();
+      data?.forEach(exercise => {
+        if (exercise.type !== 'cardio') {
+          exerciseCounts.set(exercise.name, (exerciseCounts.get(exercise.name) || 0) + 1);
+        }
+      });
+
+      const mostFrequentExercise = Array.from(exerciseCounts.entries())
+        .sort((a, b) => b[1] - a[1])[0]?.[0];
+
+      if (mostFrequentExercise) {
+        const exercise = exercisesList.find(e => e.name === mostFrequentExercise);
+        if (exercise) {
+          setSelectedExercise(exercise.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching exercises:', error);
+    }
+  };
+
+  const fetchProgressionData = async () => {
+    try {
+      // First get the exercise name if a specific exercise is selected
+      const exerciseName = selectedExercise === null 
+        ? null 
+        : uniqueExercises.find(e => e.id === selectedExercise)?.name;
+
+      if (!exerciseName && selectedExercise !== null) {
+        console.error('Exercise not found');
+        return;
+      }
+
+      // Fetch all workouts with their exercises and sets
+      let query = supabase
+        .from('workouts')
+        .select(`
+          created_at,
+          exercises (
+            id,
+            name,
+            sets (
+              weight,
+              reps
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      // Process all sets for the specific exercise
+      const allSets: { date: string; weight: number; reps: number }[] = [];
+      data?.forEach(workout => {
+        workout.exercises?.forEach(exercise => {
+          // Only include sets from the selected exercise
+          if (selectedExercise === null || exercise.name === exerciseName) {
+            exercise.sets?.forEach(set => {
+              allSets.push({
+                date: workout.created_at,
+                weight: set.weight || 0,
+                reps: set.reps || 0
+              });
+            });
+          }
+        });
+      });
+
+      // Take the last X sets (already sorted by date descending)
+      const selectedSets = allSets.slice(0, parseInt(setRange));
+
+      // Process the selected sets into chart data
+      const processedData = selectedSets.map(set => {
+        let value = 0;
+        switch (progressionMetric) {
+          case 'volume':
+            value = set.weight * set.reps;
+            break;
+          case 'reps':
+            value = set.reps;
+            break;
+          case 'maxWeight':
+            value = set.weight;
+            break;
+        }
+        return {
+          date: set.date,
+          value: value
+        };
+      }).reverse(); // Reverse to show oldest to newest
+
+      setProgressionData(processedData);
+    } catch (error) {
+      console.error('Error fetching progression data:', error);
     }
   };
 
@@ -303,41 +509,242 @@ export default function HistoryScreen() {
     </Modal>
   );
 
-  const ListHeader = () => (
-    <>
-      <ActivityChart 
-        data={activityData} 
-        onDayPress={handleDayPress}
-        selectedDate={selectedDate || undefined}
-        isExpanded={isChartExpanded}
-        onToggleExpand={() => setIsChartExpanded(!isChartExpanded)}
-      />
-      <ThemedView style={styles.header}>
-        <TouchableOpacity 
-          style={styles.headerContent}
-          onPress={() => setIsHistoryExpanded(!isHistoryExpanded)}
-        >
-          <ThemedText style={styles.title}>
-            {selectedDate 
-              ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
-              : 'History'
-            }
-          </ThemedText>
-          <IconSymbol 
-            name={isHistoryExpanded ? "chevron.up" : "chevron.down"} 
-            size={20} 
-            color={Colors[colorScheme].text}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <IconSymbol name="line.3.horizontal.decrease.circle" size={24} color={Colors[colorScheme].tint} />
-        </TouchableOpacity>
-      </ThemedView>
-    </>
+  const TabBar = () => (
+    <View style={styles.tabBar}>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === 'activity' && styles.activeTab]}
+        onPress={() => setActiveTab('activity')}
+      >
+        <ThemedText style={[styles.tabText, activeTab === 'activity' && styles.activeTabText]}>
+          Activity
+        </ThemedText>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === 'stats' && styles.activeTab]}
+        onPress={() => setActiveTab('stats')}
+      >
+        <ThemedText style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>
+          Stats
+        </ThemedText>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === 'progression' && styles.activeTab]}
+        onPress={() => setActiveTab('progression')}
+      >
+        <ThemedText style={[styles.tabText, activeTab === 'progression' && styles.activeTabText]}>
+          Progression
+        </ThemedText>
+      </TouchableOpacity>
+    </View>
   );
+
+  const renderProgressionContent = () => {
+    const chartData = {
+      labels: progressionData.length > 0 
+        ? progressionData.map((_, index) => 
+            setRange === '20' ? '' : `${new Date(progressionData[index].date).getMonth() + 1}/${new Date(progressionData[index].date).getDate()}`
+          )
+        : ['No Data'],
+      datasets: [{
+        data: progressionData.length > 0 
+          ? progressionData.map(item => item.value)
+          : [0]
+      }]
+    };
+
+    return (
+      <View style={styles.progressionContent}>
+        <View style={styles.progressionFilters}>
+          <TouchableOpacity
+            style={styles.exercisePicker}
+            onPress={() => setShowExercisePicker(true)}
+          >
+            <ThemedText>
+              {selectedExercise ? uniqueExercises.find(e => e.id === selectedExercise)?.name : 'Select Exercise'}
+            </ThemedText>
+            <IconSymbol name="chevron.down" size={20} color={Colors[colorScheme].text} />
+          </TouchableOpacity>
+          
+          <View style={styles.setRangeButtons}>
+            {(['5', '10', '20'] as SetRange[]).map(range => (
+              <TouchableOpacity
+                key={range}
+                style={[styles.setRangeButton, setRange === range && styles.activeSetRangeButton]}
+                onPress={() => setSetRange(range)}
+              >
+                <ThemedText style={[styles.setRangeText, setRange === range && styles.activeSetRangeText]}>
+                  {range === '20' ? 'All Time' : `Last ${range} sets`}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <View style={styles.metricButtons}>
+            {(['volume', 'reps', 'maxWeight'] as ProgressionMetric[]).map(metric => (
+              <TouchableOpacity
+                key={metric}
+                style={[styles.metricButton, progressionMetric === metric && styles.activeMetricButton]}
+                onPress={() => setProgressionMetric(metric)}
+              >
+                <ThemedText style={[styles.metricText, progressionMetric === metric && styles.activeMetricText]}>
+                  {metric === 'volume' ? 'Volume' : metric === 'reps' ? 'Reps' : 'Max Weight'}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.chartContainer}>
+          <LineChart
+            data={chartData}
+            width={Dimensions.get('window').width - 32}
+            height={220}
+            chartConfig={{
+              backgroundColor: Colors[colorScheme].background,
+              backgroundGradientFrom: Colors[colorScheme].background,
+              backgroundGradientTo: Colors[colorScheme].background,
+              decimalPlaces: 0,
+              color: (opacity = 1) => Colors[colorScheme].tint,
+              labelColor: (opacity = 1) => Colors[colorScheme].text,
+              style: {
+                borderRadius: 16
+              },
+              propsForDots: {
+                r: "6",
+                strokeWidth: "2",
+                stroke: Colors[colorScheme].tint
+              },
+              propsForLabels: {
+                fontSize: setRange === '20' ? 8 : 12
+              }
+            }}
+            bezier
+            style={styles.chart}
+          />
+          {progressionData.length === 0 && (
+            <View style={styles.noDataOverlay}>
+              <ThemedText style={styles.noDataText}>
+                {!selectedExercise 
+                  ? 'Select an exercise to view progression'
+                  : 'No data available for this exercise'}
+              </ThemedText>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  const ExercisePickerModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showExercisePicker}
+      onRequestClose={() => setShowExercisePicker(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <ThemedView style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <ThemedText style={styles.modalTitle}>Select Exercise</ThemedText>
+            <TouchableOpacity onPress={() => setShowExercisePicker(false)}>
+              <IconSymbol name="xmark.circle.fill" size={24} color={Colors[colorScheme].text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView>
+            {uniqueExercises.map(exercise => (
+              <TouchableOpacity
+                key={exercise.id}
+                style={styles.exerciseOption}
+                onPress={() => {
+                  setSelectedExercise(exercise.id);
+                  setShowExercisePicker(false);
+                }}
+              >
+                <ThemedText>{exercise.name}</ThemedText>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </ThemedView>
+      </View>
+    </Modal>
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'activity':
+        return (
+          <View style={styles.tabContent}>
+            <ActivityChart 
+              data={activityData} 
+              onDayPress={handleDayPress}
+              selectedDate={selectedDate || undefined}
+            />
+            <View style={styles.historyHeader}>
+              <ThemedText style={styles.title}>
+                {selectedDate 
+                  ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
+                  : 'History'
+                }
+              </ThemedText>
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => setShowFilterModal(true)}
+              >
+                <IconSymbol name="line.3.horizontal.decrease.circle" size={24} color={Colors[colorScheme].tint} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={showAllWorkouts ? filteredWorkouts : filteredWorkouts.slice(0, 5)}
+              renderItem={renderWorkoutItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={
+                filteredWorkouts.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <IconSymbol name="dumbbell" size={48} color={Colors[colorScheme].tint} />
+                    <ThemedText style={styles.emptyText}>No workouts recorded yet</ThemedText>
+                    <TouchableOpacity 
+                      style={styles.startButton}
+                      onPress={() => router.push('/(tabs)/startWorkout')}
+                    >
+                      <ThemedText style={styles.startButtonText}>Start Your First Workout</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                ) : null
+              }
+              ListFooterComponent={
+                !showAllWorkouts && filteredWorkouts.length > 5 ? (
+                  <TouchableOpacity 
+                    style={styles.seeMoreButton}
+                    onPress={() => setShowAllWorkouts(true)}
+                  >
+                    <ThemedText style={styles.seeMoreText}>See More Workouts</ThemedText>
+                    <IconSymbol 
+                      name="chevron.down" 
+                      size={20} 
+                      color={Colors[colorScheme].text}
+                    />
+                  </TouchableOpacity>
+                ) : null
+              }
+            />
+          </View>
+        );
+      case 'stats':
+        return (
+          <View style={styles.tabContent}>
+            {renderStats()}
+          </View>
+        );
+      case 'progression':
+        return (
+          <View style={styles.tabContent}>
+            {renderProgressionContent()}
+            <ExercisePickerModal />
+          </View>
+        );
+    }
+  };
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -381,41 +788,26 @@ export default function HistoryScreen() {
           <ThemedText style={styles.statValue}>{stats.totalVolume.toLocaleString()} kg</ThemedText>
           <ThemedText style={styles.statLabel}>Total Volume</ThemedText>
         </View>
+        <View style={styles.statCard}>
+          <Ionicons name="star" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{stats.favoriteExercise}</ThemedText>
+          <ThemedText style={styles.statLabel}>Favorite Exercise</ThemedText>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="trophy" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{stats.highestVolumeSession?.volume?.toLocaleString() || '0'} kg</ThemedText>
+          <ThemedText style={styles.statLabel}>Highest Volume</ThemedText>
+          <ThemedText style={styles.statDate}>{formatDate(stats.highestVolumeSession?.date || '')}</ThemedText>
+        </View>
+        <View style={styles.statCard}>
+          <Ionicons name="timer" size={24} color={Colors[colorScheme].tint} />
+          <ThemedText style={styles.statValue}>{formatDuration(stats.longestSession?.duration || 0)}</ThemedText>
+          <ThemedText style={styles.statLabel}>Longest Session</ThemedText>
+          <ThemedText style={styles.statDate}>{formatDate(stats.longestSession?.date || '')}</ThemedText>
+        </View>
       </View>
     );
   };
-
-  const ListFooter = () => (
-    <>
-      {isHistoryExpanded && !showAllWorkouts && filteredWorkouts.length > 5 && (
-        <TouchableOpacity 
-          style={styles.seeMoreButton}
-          onPress={() => setShowAllWorkouts(true)}
-        >
-          <ThemedText style={styles.seeMoreText}>See More Workouts</ThemedText>
-          <IconSymbol 
-            name="chevron.down" 
-            size={20} 
-            color={Colors[colorScheme].text}
-          />
-        </TouchableOpacity>
-      )}
-      <ThemedView style={styles.statsSection}>
-        <TouchableOpacity 
-          style={styles.headerContent}
-          onPress={() => setIsStatsExpanded(!isStatsExpanded)}
-        >
-          <ThemedText style={styles.title}>Your Stats</ThemedText>
-          <IconSymbol 
-            name={isStatsExpanded ? "chevron.up" : "chevron.down"} 
-            size={20} 
-            color={Colors[colorScheme].text}
-          />
-        </TouchableOpacity>
-        {isStatsExpanded && renderStats()}
-      </ThemedView>
-    </>
-  );
 
   if (loading) {
     return (
@@ -425,34 +817,10 @@ export default function HistoryScreen() {
     );
   }
 
-  const displayedWorkouts = isHistoryExpanded 
-    ? (showAllWorkouts ? filteredWorkouts : filteredWorkouts.slice(0, 5))
-    : [];
-
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
-      <FlatList
-        data={displayedWorkouts}
-        renderItem={renderWorkoutItem}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={ListHeader}
-        ListFooterComponent={ListFooter}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          filteredWorkouts.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <IconSymbol name="dumbbell" size={48} color={Colors[colorScheme].tint} />
-              <ThemedText style={styles.emptyText}>No workouts recorded yet</ThemedText>
-              <TouchableOpacity 
-                style={styles.startButton}
-                onPress={() => router.push('/(tabs)/startWorkout')}
-              >
-                <ThemedText style={styles.startButtonText}>Start Your First Workout</ThemedText>
-              </TouchableOpacity>
-            </View>
-          ) : null
-        }
-      />
+      <TabBar />
+      {renderContent()}
       <FilterModal />
     </ThemedView>
   );
@@ -460,6 +828,31 @@ export default function HistoryScreen() {
 
 const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: Colors[colorScheme].tint,
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: Colors[colorScheme].tint,
+    fontWeight: '600',
+  },
+  tabContent: {
     flex: 1,
   },
   content: {
@@ -499,6 +892,7 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100,
   },
   workoutItem: {
     backgroundColor: Colors[colorScheme].secondaryBackground,
@@ -563,13 +957,6 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   startButtonText: {
     color: 'white',
     fontWeight: 'bold',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
   title: {
     fontSize: 24,
@@ -647,10 +1034,13 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerContent: {
+  historyHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
   },
   statsSection: {
     marginTop: 24,
@@ -666,5 +1056,98 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   seeMoreText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  progressionContent: {
+    flex: 1,
+    padding: 16,
+  },
+  progressionFilters: {
+    marginBottom: 16,
+  },
+  exercisePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  metricButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  metricButton: {
+    flex: 1,
+    padding: 12,
+    alignItems: 'center',
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  activeMetricButton: {
+    backgroundColor: Colors[colorScheme].tint,
+  },
+  metricText: {
+    fontSize: 14,
+  },
+  activeMetricText: {
+    color: 'white',
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
+  exerciseOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
+  },
+  setRangeButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  setRangeButton: {
+    flex: 1,
+    padding: 12,
+    alignItems: 'center',
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  activeSetRangeButton: {
+    backgroundColor: Colors[colorScheme].tint,
+  },
+  setRangeText: {
+    fontSize: 14,
+  },
+  activeSetRangeText: {
+    color: 'white',
+  },
+  chartContainer: {
+    position: 'relative',
+  },
+  noDataOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 16,
+  },
+  noDataText: {
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  statDate: {
+    fontSize: 12,
+    opacity: 0.7,
+    marginTop: 4,
+    textAlign: 'center',
   },
 }); 

@@ -81,7 +81,7 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { logout, isGuest, user } = useAuth();
+  const { logout, user } = useAuth();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
@@ -298,7 +298,7 @@ export default function ProfileScreen() {
         onPress={handleSignOut}
       >
         <ThemedText style={styles.signOutText}>
-          Sign Out {isGuest ? '(Guest)' : ''}
+          Sign Out
         </ThemedText>
       </TouchableOpacity>
     </ScrollView>

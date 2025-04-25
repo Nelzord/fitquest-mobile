@@ -12,10 +12,21 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "autoIncrement": "buildNumber"
+      }
     }
+    
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascApiKeyPath": "./.eas/AuthKey_27QK6KN878.p8",
+        "ascApiKeyId": "27QK6KN878",
+        "ascApiKeyIssuerId": "f16d2271-1c7a-4ea4-850a-e7dd10fea8fb",
+        "appleTeamId": "S996V355M5"
+      }
+    }
   }
 }
