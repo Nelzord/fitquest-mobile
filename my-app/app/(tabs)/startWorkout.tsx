@@ -847,6 +847,7 @@ export default function StartWorkoutScreen() {
     const invalidSets = exercises.flatMap(exercise => {
       return exercise.sets.filter(set => {
         if (set.completed) {
+          // Check for missing required fields
           if (exercise.type === 'standard' && (!set.reps || !set.weight)) {
             return true;
           }
@@ -856,24 +857,50 @@ export default function StartWorkoutScreen() {
           if (exercise.type === 'timed' && !set.duration) {
             return true;
           }
+
+          // Check for exceeded limits
+          if (exercise.type === 'standard' || exercise.type === 'bodyweight') {
+            const reps = parseInt(set.reps || '0');
+            if (reps > 100) {
+              return true;
+            }
+            if (exercise.type === 'standard') {
+              const weight = parseFloat(set.weight || '0');
+              const volume = reps * weight;
+              if (volume > 1000) {
+                return true;
+              }
+            }
+          }
         }
         return false;
       }).map(set => ({
         exerciseName: exercise.name,
         setNumber: exercise.sets.indexOf(set) + 1,
-        type: exercise.type
+        type: exercise.type,
+        reps: set.reps,
+        weight: set.weight,
+        error: (() => {
+          if (!set.reps && !set.weight) return 'reps and weight required';
+          if (!set.reps) return 'reps required';
+          if (!set.weight) return 'weight required';
+          if (parseInt(set.reps) > 100) return 'reps cannot exceed 100';
+          if (exercise.type === 'standard' && parseFloat(set.weight) * parseInt(set.reps) > 1000) {
+            return 'volume (reps × weight) cannot exceed 1000';
+          }
+          return '';
+        })()
       }));
     });
 
     if (invalidSets.length > 0) {
       // Show error message with details about invalid sets
-      const errorMessage = `Please complete the following sets:\n${invalidSets.map(set => 
-        `- ${set.exerciseName} (Set ${set.setNumber}): ${set.type === 'standard' ? 'reps and weight' : 
-          set.type === 'bodyweight' ? 'reps' : 'duration'} required`
+      const errorMessage = `Please fix the following sets:\n${invalidSets.map(set => 
+        `- ${set.exerciseName} (Set ${set.setNumber}): ${set.error}`
       ).join('\n')}`;
       
       Alert.alert(
-        'Incomplete Sets',
+        'Invalid Sets',
         errorMessage,
         [{ text: 'OK' }]
       );
