@@ -321,7 +321,9 @@ export default function InventoryScreen() {
           onPress={() => setActiveTab('shop')}
         >
           <IconSymbol name="cart" size={20} color={Colors[colorScheme].text} />
-          <ThemedText style={styles(colorScheme).tabText}>Shop</ThemedText>
+          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'shop' && styles(colorScheme).activeTabText]}>
+            Shop
+          </ThemedText>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -329,7 +331,9 @@ export default function InventoryScreen() {
           onPress={() => setActiveTab('achievements')}
         >
           <IconSymbol name="trophy" size={20} color={Colors[colorScheme].text} />
-          <ThemedText style={styles(colorScheme).tabText}>Achievements</ThemedText>
+          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'achievements' && styles(colorScheme).activeTabText]}>
+            Achievements
+          </ThemedText>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -337,7 +341,9 @@ export default function InventoryScreen() {
           onPress={() => setActiveTab('items')}
         >
           <IconSymbol name="bag" size={20} color={Colors[colorScheme].text} />
-          <ThemedText style={styles(colorScheme).tabText}>Items</ThemedText>
+          <ThemedText style={[styles(colorScheme).tabText, activeTab === 'items' && styles(colorScheme).activeTabText]}>
+            Items
+          </ThemedText>
         </TouchableOpacity>
       </View>
       <View style={styles(colorScheme).content}>
@@ -353,17 +359,16 @@ const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors[colorScheme].borderColor,
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: 12,
     alignItems: 'center',
+    flexDirection: 'row',
     justifyContent: 'center',
-    padding: 12,
-    gap: 8,
+    gap: 4,
   },
   activeTab: {
     borderBottomWidth: 2,
@@ -371,6 +376,10 @@ const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   tabText: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  activeTabText: {
+    color: Colors[colorScheme].tint,
     fontWeight: '600',
   },
   content: {
@@ -380,10 +389,17 @@ const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  sectionTitle: {
-    fontSize: 20,
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
+  },
+  title: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 16,
   },
   goldContainer: {
     flexDirection: 'row',
@@ -397,6 +413,16 @@ const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  goldIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 8,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
   },
   capsuleButton: {
     flexDirection: 'row',
@@ -413,10 +439,5 @@ const styles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-  },
-  goldIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 8,
   },
 }); 

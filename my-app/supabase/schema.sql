@@ -533,3 +533,24 @@ CREATE POLICY "Allow service role to manage achievements"
     ON achievements FOR ALL
     TO service_role
     USING (true); 
+
+
+-- Add RLS policies for users table
+ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own profile" ON auth.users;
+DROP POLICY IF EXISTS "Users can update their own profile" ON auth.users;
+
+-- Create policies for users table
+CREATE POLICY "Users can view their own profile"
+    ON auth.users FOR SELECT
+    USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile"
+    ON auth.users FOR UPDATE
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+
+-- Grant necessary permissions
+GRANT SELECT, UPDATE (name, updated_at) ON auth.users TO authenticated;

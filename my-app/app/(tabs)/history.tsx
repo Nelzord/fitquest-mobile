@@ -515,6 +515,7 @@ export default function HistoryScreen() {
         style={[styles.tab, activeTab === 'activity' && styles.activeTab]}
         onPress={() => setActiveTab('activity')}
       >
+        <IconSymbol name="chart.bar" size={20} color={Colors[colorScheme].text} />
         <ThemedText style={[styles.tabText, activeTab === 'activity' && styles.activeTabText]}>
           Activity
         </ThemedText>
@@ -523,6 +524,7 @@ export default function HistoryScreen() {
         style={[styles.tab, activeTab === 'stats' && styles.activeTab]}
         onPress={() => setActiveTab('stats')}
       >
+        <IconSymbol name="chart.pie" size={20} color={Colors[colorScheme].text} />
         <ThemedText style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>
           Stats
         </ThemedText>
@@ -531,6 +533,7 @@ export default function HistoryScreen() {
         style={[styles.tab, activeTab === 'progression' && styles.activeTab]}
         onPress={() => setActiveTab('progression')}
       >
+        <IconSymbol name="chart.line.uptrend.xyaxis" size={20} color={Colors[colorScheme].text} />
         <ThemedText style={[styles.tabText, activeTab === 'progression' && styles.activeTabText]}>
           Progression
         </ThemedText>
@@ -862,6 +865,9 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 4,
   },
   activeTab: {
     borderBottomWidth: 2,
