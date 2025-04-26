@@ -181,6 +181,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             if (session) {
               console.log('Session set successfully, redirecting...');
+              
+              // Check if user stats exist, if not create them
+              const { data: statsData, error: statsError } = await supabase
+                .from('user_stats')
+                .select('user_id')
+                .eq('user_id', session.user.id)
+                .single();
+
+              if (statsError && statsError.code === 'PGRST116') { // No rows returned
+                // Create user stats
+                const { error: createStatsError } = await supabase
+                  .from('user_stats')
+                  .insert({
+                    user_id: session.user.id,
+                    gold: 0,
+                    xp: 0,
+                    level: 1,
+                    chest_xp: 0,
+                    back_xp: 0,
+                    legs_xp: 0,
+                    shoulders_xp: 0,
+                    arms_xp: 0,
+                    core_xp: 0,
+                    cardio_xp: 0,
+                    last_updated: new Date().toISOString()
+                  });
+
+                if (createStatsError) {
+                  console.error('Error creating user stats:', createStatsError);
+                }
+              }
+
               setUser(session.user);
               setIsAuthenticated(true);
               router.replace('/(tabs)');

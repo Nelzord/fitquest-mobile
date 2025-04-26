@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS items CASCADE;
 DROP TABLE IF EXISTS user_roles CASCADE;
 DROP TABLE IF EXISTS user_inventory CASCADE;
 DROP TABLE IF EXISTS achievements CASCADE;
+DROP TABLE IF EXISTS friends;
 
 -- Create the workouts table with statistics columns
 CREATE TABLE IF NOT EXISTS workouts (
@@ -554,3 +555,69 @@ CREATE POLICY "Users can update their own profile"
 
 -- Grant necessary permissions
 GRANT SELECT, UPDATE (name, updated_at) ON auth.users TO authenticated;
+
+-- Create the friends table with proper foreign key relationships
+CREATE TABLE friends (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    friend_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'rejected')),
+    requester_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(user_id, friend_id)
+);
+
+-- Create the function to check outgoing request limit
+CREATE OR REPLACE FUNCTION check_outgoing_requests()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'pending' AND NEW.requester_id = NEW.user_id THEN
+        IF (
+            SELECT COUNT(*)
+            FROM friends
+            WHERE requester_id = NEW.user_id
+            AND status = 'pending'
+        ) >= 5 THEN
+            RAISE EXCEPTION 'Maximum 5 outgoing friend requests allowed';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create the trigger
+CREATE TRIGGER check_outgoing_requests_trigger
+    BEFORE INSERT OR UPDATE ON friends
+    FOR EACH ROW
+    EXECUTE FUNCTION check_outgoing_requests();
+
+-- Enable RLS
+ALTER TABLE friends ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Users can view their own friends and requests"
+    ON friends FOR SELECT
+    USING (auth.uid() = user_id OR auth.uid() = friend_id);
+
+CREATE POLICY "Users can send friend requests"
+    ON friends FOR INSERT
+    WITH CHECK (auth.uid() = requester_id);
+
+CREATE POLICY "Users can accept/reject friend requests"
+    ON friends FOR UPDATE
+    USING (auth.uid() = user_id OR auth.uid() = friend_id)
+    WITH CHECK (auth.uid() = user_id OR auth.uid() = friend_id);
+
+CREATE POLICY "Users can remove friends"
+    ON friends FOR DELETE
+    USING (auth.uid() = user_id OR auth.uid() = friend_id);
+
+-- Grant permissions
+GRANT ALL ON friends TO authenticated;
+
+-- Create trigger to update updated_at
+CREATE TRIGGER set_updated_at
+    BEFORE UPDATE ON friends
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();

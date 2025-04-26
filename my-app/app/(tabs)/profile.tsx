@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, TextInput } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, TextInput, Alert, Clipboard } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -59,6 +59,18 @@ interface RankInfo {
   color: string;
   minXP: number;
   letter: string;
+}
+
+interface Friend {
+  id: string;
+  user_id: string;
+  friend_id: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  requester_id: string;
+  friend_name: string;
+  friend_email: string;
+  friend_level: number;
+  friend_rank: RankInfo;
 }
 
 const RANKS: RankInfo[] = [
@@ -306,6 +318,170 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  friendsContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  friendCodeSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: Colors[colorScheme].background,
+  },
+  friendCodeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  friendCode: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  friendCodeHint: {
+    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
+  },
+  addFriendSection: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    gap: 8,
+  },
+  friendInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].borderColor,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  addFriendButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    justifyContent: 'center',
+  },
+  addFriendButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  requestItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: Colors[colorScheme].background,
+    marginBottom: 8,
+  },
+  friendItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: Colors[colorScheme].background,
+    marginBottom: 8,
+  },
+  friendName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  friendEmail: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  acceptButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  declineButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  deleteButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  friendInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flex: 1,
+  },
+  friendStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  rankIcon: {
+    width: 24,
+    height: 24,
+  },
+  friendLevel: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  friendActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  friendActionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  viewProfileButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  removeFriendButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  friendCodeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  toggleButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  toggleButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  friendCodeContainer: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: Colors[colorScheme].background,
+    marginBottom: 8,
+  },
 });
 
 export default function ProfileScreen() {
@@ -320,6 +496,14 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.email?.split('@')[0] || 'User');
   const styles = getStyles(colorScheme);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<Friend[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<Friend[]>([]);
+  const [newFriendId, setNewFriendId] = useState('');
+  const [loadingFriends, setLoadingFriends] = useState(true);
+  const isFetching = useRef(false);
+  const [showFriendCode, setShowFriendCode] = useState(false);
+  const [friendStats, setFriendStats] = useState<{ [key: string]: UserStats }>({});
 
   const fetchItems = useCallback(async () => {
     if (!user) return;
@@ -370,12 +554,276 @@ export default function ProfileScreen() {
     }
   }, [user]);
 
+  const fetchFriends = useCallback(async () => {
+    console.log('FetchFriends called with user:', user?.id);
+    if (!user) {
+      console.log('No user object available');
+      return;
+    }
+    if (isFetching.current) {
+      console.log('Already fetching, skipping');
+      return;
+    }
+    
+    try {
+      console.log('Starting fetchFriends');
+      isFetching.current = true;
+      setLoadingFriends(true);
+      
+      // Get all friend relationships
+      const { data: friendsData, error: friendsError } = await supabase
+        .from('friends')
+        .select('*')
+        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+
+      if (friendsError) {
+        console.error('Error fetching friends:', friendsError);
+        throw friendsError;
+      }
+
+      console.log('Fetched friends data:', friendsData);
+
+      if (!friendsData || friendsData.length === 0) {
+        console.log('No friends data found, setting empty arrays');
+        setFriends([]);
+        setOutgoingRequests([]);
+        setIncomingRequests([]);
+        return;
+      }
+
+      // Get all friend IDs (the other user in the relationship)
+      const friendIds = new Set<string>();
+      friendsData.forEach((friend: any) => {
+        // Add the ID that is not the current user's ID
+        if (friend.user_id === user.id) {
+          friendIds.add(friend.friend_id);
+        } else {
+          friendIds.add(friend.user_id);
+        }
+      });
+
+      console.log('Friend IDs to fetch:', Array.from(friendIds));
+
+      // Fetch friend names from users table
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, name')
+        .in('id', Array.from(friendIds));
+
+      if (usersError) {
+        console.error('Error fetching user names:', usersError);
+        throw usersError;
+      }
+
+      // Fetch friend stats from user_stats table
+      const { data: statsData, error: statsError } = await supabase
+        .from('user_stats')
+        .select('user_id, level, chest_xp, back_xp, legs_xp, shoulders_xp, arms_xp, core_xp, cardio_xp')
+        .in('user_id', Array.from(friendIds));
+
+      if (statsError) {
+        console.error('Error fetching user stats:', statsError);
+        throw statsError;
+      }
+
+      // Create a map of friend IDs to their data
+      const friendMap = new Map<string, any>();
+
+      // If no users found, create placeholder entries
+      if (!usersData || usersData.length === 0) {
+        // Create a map with just IDs for missing users
+        Array.from(friendIds).forEach(id => {
+          friendMap.set(id, {
+            name: `User ${id.substring(0, 8)}...`,
+            level: 1,
+            rankInfo: getRankInfo(0)
+          });
+        });
+      } else {
+        // Process found users
+        usersData.forEach((userData: any) => {
+          const userStats = statsData?.find((stat: any) => stat.user_id === userData.id);
+          
+          if (userStats) {
+            const avgXP = Math.floor((
+              (userStats.chest_xp || 0) +
+              (userStats.back_xp || 0) +
+              (userStats.legs_xp || 0) +
+              (userStats.shoulders_xp || 0) +
+              (userStats.arms_xp || 0) +
+              (userStats.core_xp || 0) +
+              (userStats.cardio_xp || 0)
+            ) / 7);
+            const rankInfo = getRankInfo(avgXP);
+            
+            friendMap.set(userData.id, {
+              name: userData.name,
+              level: userStats.level,
+              rankInfo: rankInfo
+            });
+          } else {
+            friendMap.set(userData.id, {
+              name: userData.name,
+              level: 1,
+              rankInfo: getRankInfo(0)
+            });
+          }
+        });
+      }
+
+      // Format the friends data with names and stats
+      const formattedFriends = friendsData.map((f: any) => {
+        const friendId = f.user_id === user.id ? f.friend_id : f.user_id;
+        const friendData = friendMap.get(friendId);
+        
+        return {
+          ...f,
+          friend_name: friendData?.name || `User ${friendId.substring(0, 8)}...`,
+          friend_level: friendData?.level || 1,
+          friend_rank: friendData?.rankInfo || getRankInfo(0)
+        };
+      });
+
+      // Update state in a single batch
+      setFriends(formattedFriends.filter((f: Friend) => f.status === 'accepted'));
+      setOutgoingRequests(formattedFriends.filter((f: Friend) => 
+        f.status === 'pending' && f.requester_id === user.id
+      ));
+      setIncomingRequests(formattedFriends.filter((f: Friend) => 
+        f.status === 'pending' && f.requester_id !== user.id
+      ));
+    } catch (error) {
+      console.error('Error in fetchFriends:', error);
+      setFriends([]);
+      setOutgoingRequests([]);
+      setIncomingRequests([]);
+    } finally {
+      setLoadingFriends(false);
+      isFetching.current = false;
+    }
+  }, [user?.id]);
+
+  const fetchAllUsers = async () => {
+    try {
+      console.log('Fetching all users...');
+      const { data: allUsers, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching all users:', error);
+        return;
+      }
+
+      console.log('All users in database:', allUsers.map(user => ({
+        id: user.id,
+        name: user.name,
+        level: user.level,
+        chest_xp: user.chest_xp,
+        back_xp: user.back_xp,
+        legs_xp: user.legs_xp,
+        shoulders_xp: user.shoulders_xp,
+        arms_xp: user.arms_xp,
+        core_xp: user.core_xp,
+        cardio_xp: user.cardio_xp
+      })));
+    } catch (err) {
+      console.error('Error in fetchAllUsers:', err);
+    }
+  };
+
+  // Single effect for friends
+  useEffect(() => {
+    console.log('Friends useEffect mounted');
+    let mounted = true;
+
+    const loadFriends = async () => {
+      if (mounted) {
+        console.log('Loading friends...');
+        await fetchAllUsers();
+        await fetchFriends();
+      }
+    };
+
+    loadFriends();
+
+    return () => {
+      console.log('Friends useEffect cleanup');
+      mounted = false;
+    };
+  }, [fetchFriends]);
+
+  const handleAddFriend = async () => {
+    if (!user || !newFriendId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('friends')
+        .insert({
+          user_id: user.id,
+          friend_id: newFriendId,
+          status: 'pending',
+          requester_id: user.id
+        });
+
+      if (error) throw error;
+      setNewFriendId('');
+      fetchFriends();
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to send friend request');
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('friends')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+      fetchFriends();
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('friends')
+        .update({ status: 'rejected' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+      fetchFriends();
+    } catch (error) {
+      console.error('Error declining friend request:', error);
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('friends')
+        .delete()
+        .eq('id', requestId);
+
+      if (error) throw error;
+      fetchFriends();
+    } catch (error) {
+      console.error('Error deleting friend request:', error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchUserStats();
       fetchItems();
+      fetchFriends();
     }
-  }, [user, fetchUserStats, fetchItems]);
+  }, [user, fetchUserStats, fetchItems, fetchFriends]);
 
   useFocusEffect(
     useCallback(() => {
@@ -422,6 +870,13 @@ export default function ProfileScreen() {
     }
   };
 
+  const copyFriendCode = () => {
+    if (user?.id) {
+      Clipboard.setString(user.id);
+      Alert.alert('Copied!', 'Your friend code has been copied to clipboard');
+    }
+  };
+
   const TabBar = () => (
     <View style={styles.tabBar}>
       <TouchableOpacity
@@ -453,6 +908,145 @@ export default function ProfileScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  const renderFriendItem = (friend: Friend, isRequest: boolean = false, isIncoming: boolean = false) => {
+    return (
+      <View key={friend.id} style={styles.friendItem}>
+        <View style={styles.friendInfo}>
+          <View>
+            <ThemedText style={styles.friendName}>{friend.friend_name}</ThemedText>
+            <View style={styles.friendStats}>
+              <Image 
+                source={friend.friend_rank?.logo} 
+                style={styles.rankIcon}
+                resizeMode="contain"
+              />
+              <ThemedText style={styles.friendLevel}>Level {friend.friend_level}</ThemedText>
+            </View>
+          </View>
+          <View style={styles.friendActions}>
+            {isRequest ? (
+              <View style={styles.requestActions}>
+                {isIncoming ? (
+                  <>
+                    <TouchableOpacity 
+                      style={[styles.acceptButton, { backgroundColor: Colors[colorScheme].tint }]}
+                      onPress={() => handleAcceptRequest(friend.id)}
+                    >
+                      <ThemedText style={styles.buttonText}>Accept</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.declineButton, { backgroundColor: Colors[colorScheme].danger }]}
+                      onPress={() => handleDeclineRequest(friend.id)}
+                    >
+                      <ThemedText style={styles.buttonText}>Decline</ThemedText>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity 
+                    style={[styles.deleteButton, { backgroundColor: Colors[colorScheme].danger }]}
+                    onPress={() => handleDeleteRequest(friend.id)}
+                  >
+                    <ThemedText style={styles.buttonText}>Delete</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.friendActionButtons}>
+                <TouchableOpacity 
+                  style={[styles.viewProfileButton, { backgroundColor: Colors[colorScheme].tint }]}
+                  onPress={() => {
+                    // TODO: Implement view profile logic
+                    Alert.alert('Coming Soon', 'View profile feature will be available soon!');
+                  }}
+                >
+                  <ThemedText style={styles.buttonText}>View Profile</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.removeFriendButton, { backgroundColor: Colors[colorScheme].danger }]}
+                  onPress={() => handleDeleteRequest(friend.id)}
+                >
+                  <ThemedText style={styles.buttonText}>Remove</ThemedText>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderFriendsContent = () => {
+    if (loadingFriends) {
+      return <ActivityIndicator size="large" color={Colors[colorScheme].tint} />;
+    }
+
+    return (
+      <ScrollView style={styles.friendsContainer}>
+        <View style={styles.friendCodeSection}>
+          <ThemedText style={styles.friendCodeTitle}>Your Friend Code</ThemedText>
+          <TouchableOpacity 
+            style={styles.friendCodeContainer}
+            onPress={() => {
+              if (showFriendCode && user?.id) {
+                Clipboard.setString(user.id);
+                Alert.alert('Copied!', 'Your friend code has been copied to clipboard');
+              }
+            }}
+          >
+            <ThemedText style={styles.friendCode}>
+              {showFriendCode ? user?.id : '••••••••••••••••'}
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.toggleButton, { backgroundColor: Colors[colorScheme].tint }]}
+            onPress={() => setShowFriendCode(!showFriendCode)}
+          >
+            <ThemedText style={styles.toggleButtonText}>
+              {showFriendCode ? 'Hide Code' : 'Show Code'}
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.addFriendSection}>
+          <TextInput
+            style={[styles.friendInput, { color: Colors[colorScheme].text }]}
+            placeholder="Enter friend code"
+            value={newFriendId}
+            onChangeText={setNewFriendId}
+            placeholderTextColor={Colors[colorScheme].text}
+          />
+          <TouchableOpacity 
+            style={[styles.addFriendButton, { backgroundColor: Colors[colorScheme].tint }]}
+            onPress={handleAddFriend}
+          >
+            <ThemedText style={styles.addFriendButtonText}>Add Friend</ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        {incomingRequests.length > 0 && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Incoming Requests</ThemedText>
+            {incomingRequests.map(request => renderFriendItem(request, true, true))}
+          </View>
+        )}
+
+        {outgoingRequests.length > 0 && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Outgoing Requests</ThemedText>
+            {outgoingRequests.map(request => renderFriendItem(request, true, false))}
+          </View>
+        )}
+
+        {friends.length > 0 && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Friends</ThemedText>
+            {friends.map(friend => renderFriendItem(friend))}
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -605,10 +1199,7 @@ export default function ProfileScreen() {
       case 'friends':
         return (
           <View style={[styles.container, { paddingTop: insets.top }]}>
-            <View style={styles.historyHeader}>
-              <ThemedText style={styles.title}>Friends</ThemedText>
-            </View>
-            <ThemedText>Friends feature coming soon!</ThemedText>
+            {renderFriendsContent()}
           </View>
         );
       case 'premium':
