@@ -269,6 +269,7 @@ const styles = StyleSheet.create({
   },
   grid: {
     padding: 8,
+    paddingBottom: 100,
   },
   itemContainer: {
     flex: 1,

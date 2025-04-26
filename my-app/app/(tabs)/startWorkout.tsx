@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback, ActivityIndicator, ImageSourcePropType, Alert } from 'react-native';
+import { StyleSheet, View, TextInput, FlatList, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, SectionList, Modal, useColorScheme as useRNColorScheme, Keyboard, TouchableWithoutFeedback, ActivityIndicator, ImageSourcePropType, Alert, AppState } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol'; // Assuming IconSymbol exists
@@ -201,9 +201,9 @@ const ExerciseItem = ({
           <>
             <ThemedText style={styles.setRowHeaderTextAction}></ThemedText>
             <ThemedText style={styles.setRowHeaderText}>Set</ThemedText>
-            <ThemedText style={styles.setRowHeaderText}>Reps</ThemedText>
-            <ThemedText style={styles.setRowHeaderText}>Weight (kg)</ThemedText>
-            <ThemedText style={styles.setRowHeaderText}>Done</ThemedText>
+            <ThemedText style={styles.setRowHeaderTextReps}>Reps</ThemedText>
+            <ThemedText style={styles.setRowHeaderTextWeight}>Weight</ThemedText>
+            <ThemedText style={styles.setRowHeaderTextDone}>Done</ThemedText>
           </>
         );
       case 'bodyweight':
@@ -211,8 +211,8 @@ const ExerciseItem = ({
           <>
             <ThemedText style={styles.setRowHeaderTextAction}></ThemedText>
             <ThemedText style={styles.setRowHeaderText}>Set</ThemedText>
-            <ThemedText style={[styles.setRowHeaderText, styles.singleSetInputHeader]}>Reps</ThemedText> 
-            <ThemedText style={styles.setRowHeaderText}>Done</ThemedText>
+            <ThemedText style={[styles.setRowHeaderTextReps, styles.singleSetInputHeader]}>Reps</ThemedText> 
+            <ThemedText style={styles.setRowHeaderTextDone}>Done</ThemedText>
           </>
         );
       case 'timed':
@@ -222,7 +222,7 @@ const ExerciseItem = ({
             <ThemedText style={styles.setRowHeaderText}>Set</ThemedText>
             <ThemedText style={styles.setRowHeaderText}>Duration</ThemedText>
             <ThemedText style={styles.setRowHeaderText}>Distance</ThemedText>
-            <ThemedText style={styles.setRowHeaderText}>Done</ThemedText>
+            <ThemedText style={styles.setRowHeaderTextDone}>Done</ThemedText>
           </>
         );
       default:
@@ -510,6 +510,8 @@ export default function StartWorkoutScreen() {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionStats, setCompletionStats] = useState<WorkoutCompletionStats | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [backgroundTime, setBackgroundTime] = useState<number | null>(null);
+  const appState = useRef(AppState.currentState);
 
   // Memoize filtered data - now includes category filtering
   const filteredWorkoutData = useMemo(() => {
@@ -666,6 +668,33 @@ export default function StartWorkoutScreen() {
       }
     };
   }, [isWorkoutActive]);
+
+  // AppState Effect for background timer
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (isWorkoutActive) {
+        // Only process the first background event and ignore subsequent ones
+        if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+          console.log('App went to background at:', new Date().toISOString());
+          setBackgroundTime(Date.now());
+        }
+        // Only process the first active event after being in background
+        else if (appState.current.match(/inactive|background/) && nextAppState === 'active' && backgroundTime) {
+          console.log('App came to foreground at:', new Date().toISOString());
+          const elapsedTime = Math.floor((Date.now() - backgroundTime) / 1000);
+          console.log('Time spent in background:', elapsedTime, 'seconds');
+          setTime(prevTime => prevTime + elapsedTime);
+          setBackgroundTime(null);
+        }
+      }
+      console.log('App state changed from', appState.current, 'to', nextAppState);
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isWorkoutActive, backgroundTime]);
 
   const startWorkout = () => {
     setIsWorkoutActive(true);
@@ -876,7 +905,7 @@ export default function StartWorkoutScreen() {
             if (exercise.type === 'standard') {
               const weight = parseFloat(set.weight || '0');
               const volume = reps * weight;
-              if (volume > 1000) {
+              if (volume > 20000) {
                 return true;
               }
             }
@@ -894,8 +923,8 @@ export default function StartWorkoutScreen() {
           if (!set.reps) return 'reps required';
           if (!set.weight) return 'weight required';
           if (parseInt(set.reps) > 100) return 'reps cannot exceed 100';
-          if (exercise.type === 'standard' && parseFloat(set.weight) * parseInt(set.reps) > 1000) {
-            return 'volume (reps × weight) cannot exceed 1000';
+          if (exercise.type === 'standard' && parseFloat(set.weight) * parseInt(set.reps) > 20000) {
+            return 'volume (reps × weight) cannot exceed 20,000';
           }
           return '';
         })()
@@ -1442,16 +1471,42 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   },
   setRowHeaderText: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: 'left',
     fontSize: 11,
     color: Colors[colorScheme].placeholderText,
     fontWeight: '500',
-    paddingHorizontal: 2, // Add padding for tighter columns
+    paddingHorizontal: 8,
   },
   setRowHeaderTextAction: {
     flexBasis: 30,
     flexGrow: 0,
     flexShrink: 0,
+  },
+  setRowHeaderTextReps: {
+    flex: 0.8,
+    textAlign: 'left',
+    fontSize: 11,
+    color: Colors[colorScheme].placeholderText,
+    fontWeight: '500',
+    paddingHorizontal: 0,
+    marginLeft: -18,
+  },
+  setRowHeaderTextWeight: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 11,
+    color: Colors[colorScheme].placeholderText,
+    fontWeight: '500',
+    paddingHorizontal: 0,
+    marginRight: -4,
+  },
+  setRowHeaderTextDone: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 11,
+    color: Colors[colorScheme].placeholderText,
+    fontWeight: '500',
+    paddingHorizontal: 2,
   },
   setRow: {
     flexDirection: 'row',

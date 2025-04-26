@@ -47,9 +47,7 @@
       }
     },
     "owner": "nelzord",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0", 
     "updates": {
       "url": "https://u.expo.dev/3b4e04e2-f757-45a3-8cca-3614f23aab78"
     }
