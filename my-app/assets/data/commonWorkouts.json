@@ -4,9 +4,15 @@
       "name": "Chest",
       "exercises": [
         { "name": "Bench Press", "muscle": "Pectoralis Major", "equipment": "Barbell", "type": "standard" },
+        { "name": "Dumbbell Bench Press", "muscle": "Pectoralis Major", "equipment": "Dumbbells", "type": "standard" },
         { "name": "Dumbbell Flyes", "muscle": "Pectoralis Major", "equipment": "Dumbbells", "type": "standard" },
         { "name": "Push-ups", "muscle": "Pectoralis Major, Triceps, Deltoids", "equipment": "Bodyweight", "type": "bodyweight" },
-        { "name": "Incline Dumbbell Press", "muscle": "Upper Pectoralis", "equipment": "Dumbbells, Incline Bench", "type": "standard" }
+        { "name": "Incline Dumbbell Press", "muscle": "Upper Pectoralis", "equipment": "Dumbbells, Incline Bench", "type": "standard" },
+        { "name": "Incline Bench Press", "muscle": "Upper Pectoralis", "equipment": "Barbell", "type": "standard" },
+        { "name": "Decline Bench Press", "muscle": "Lower Pectoralis", "equipment": "Barbell", "type": "standard" },
+        { "name": "Cable Crossovers", "muscle": "Pectoralis Major", "equipment": "Cable Machine", "type": "standard" },
+        { "name": "Chest Dips", "muscle": "Lower Pectoralis, Triceps", "equipment": "Dip Bars", "type": "bodyweight" },
+        { "name": "Machine Chest Press", "muscle": "Pectoralis Major", "equipment": "Chest Press Machine", "type": "standard" }
       ]
     },
     {
@@ -15,7 +21,12 @@
         { "name": "Pull-ups", "muscle": "Latissimus Dorsi, Biceps", "equipment": "Pull-up Bar/Bodyweight", "type": "bodyweight" },
         { "name": "Bent-over Rows", "muscle": "Latissimus Dorsi, Rhomboids", "equipment": "Barbell/Dumbbells", "type": "standard" },
         { "name": "Lat Pulldowns", "muscle": "Latissimus Dorsi", "equipment": "Cable Machine", "type": "standard" },
-        { "name": "Deadlifts", "muscle": "Full Back, Glutes, Hamstrings", "equipment": "Barbell", "type": "standard" }
+        { "name": "Deadlifts", "muscle": "Full Back, Glutes, Hamstrings", "equipment": "Barbell", "type": "standard" },
+        { "name": "Seated Cable Rows", "muscle": "Latissimus Dorsi, Rhomboids", "equipment": "Cable Machine", "type": "standard" },
+        { "name": "T-Bar Rows", "muscle": "Middle Back, Rhomboids", "equipment": "T-Bar Machine", "type": "standard" },
+        { "name": "Single-arm Dumbbell Rows", "muscle": "Latissimus Dorsi", "equipment": "Dumbbell", "type": "standard" },
+        { "name": "Straight-arm Pulldowns", "muscle": "Latissimus Dorsi", "equipment": "Cable Machine", "type": "standard" },
+        { "name": "Inverted Rows", "muscle": "Back, Biceps", "equipment": "Bodyweight/TRX", "type": "bodyweight" }
       ]
     },
     {
@@ -24,7 +35,12 @@
         { "name": "Squats", "muscle": "Quadriceps, Glutes, Hamstrings", "equipment": "Barbell/Dumbbells/Bodyweight", "type": "standard" },
         { "name": "Lunges", "muscle": "Quadriceps, Glutes", "equipment": "Dumbbells/Bodyweight", "type": "standard" },
         { "name": "Leg Press", "muscle": "Quadriceps, Glutes", "equipment": "Leg Press Machine", "type": "standard" },
-        { "name": "Calf Raises", "muscle": "Gastrocnemius, Soleus", "equipment": "Bodyweight/Machine", "type": "standard" }
+        { "name": "Calf Raises", "muscle": "Gastrocnemius, Soleus", "equipment": "Bodyweight/Machine", "type": "standard" },
+        { "name": "Romanian Deadlifts", "muscle": "Hamstrings, Glutes", "equipment": "Barbell/Dumbbells", "type": "standard" },
+        { "name": "Bulgarian Split Squats", "muscle": "Quadriceps, Glutes", "equipment": "Dumbbells/Bodyweight", "type": "standard" },
+        { "name": "Step-ups", "muscle": "Quadriceps, Glutes", "equipment": "Bench/Bodyweight", "type": "standard" },
+        { "name": "Hip Thrusts", "muscle": "Glutes, Hamstrings", "equipment": "Barbell/Bodyweight", "type": "standard" },
+        { "name": "Glute Bridges", "muscle": "Glutes", "equipment": "Bodyweight", "type": "bodyweight" }
       ]
     },
     {
@@ -33,7 +49,11 @@
         { "name": "Overhead Press", "muscle": "Deltoids, Triceps", "equipment": "Barbell/Dumbbells", "type": "standard" },
         { "name": "Lateral Raises", "muscle": "Lateral Deltoids", "equipment": "Dumbbells", "type": "standard" },
         { "name": "Front Raises", "muscle": "Anterior Deltoids", "equipment": "Dumbbells", "type": "standard" },
-        { "name": "Face Pulls", "muscle": "Rear Deltoids, Rotator Cuff", "equipment": "Cable Machine/Bands", "type": "standard" }
+        { "name": "Face Pulls", "muscle": "Rear Deltoids, Rotator Cuff", "equipment": "Cable Machine/Bands", "type": "standard" },
+        { "name": "Arnold Press", "muscle": "Deltoids", "equipment": "Dumbbells", "type": "standard" },
+        { "name": "Shrugs", "muscle": "Trapezius", "equipment": "Dumbbells/Barbell", "type": "standard" },
+        { "name": "Rear Delt Flyes", "muscle": "Rear Deltoids", "equipment": "Dumbbells/Cable Machine", "type": "standard" },
+        { "name": "Dumbbell Shoulder Press", "muscle": "Deltoids, Triceps", "equipment": "Dumbbells", "type": "standard" }
       ]
     },
     {
@@ -42,7 +62,11 @@
         { "name": "Bicep Curls", "muscle": "Biceps", "equipment": "Dumbbells/Barbell/Cable", "type": "standard" },
         { "name": "Triceps Pushdowns", "muscle": "Triceps", "equipment": "Cable Machine", "type": "standard" },
         { "name": "Hammer Curls", "muscle": "Biceps, Brachialis", "equipment": "Dumbbells", "type": "standard" },
-        { "name": "Skullcrushers", "muscle": "Triceps", "equipment": "Barbell/Dumbbells", "type": "standard" }
+        { "name": "Skullcrushers", "muscle": "Triceps", "equipment": "Barbell/Dumbbells", "type": "standard" },
+        { "name": "Concentration Curls", "muscle": "Biceps", "equipment": "Dumbbell", "type": "standard" },
+        { "name": "Preacher Curls", "muscle": "Biceps", "equipment": "Preacher Bench, Barbell/Dumbbell", "type": "standard" },
+        { "name": "Overhead Triceps Extension", "muscle": "Triceps", "equipment": "Dumbbell/Cable", "type": "standard" },
+        { "name": "Close-grip Bench Press", "muscle": "Triceps, Chest", "equipment": "Barbell", "type": "standard" }
       ]
     },
     {
@@ -51,8 +75,13 @@
         { "name": "Running", "muscle": "Full Body", "equipment": "Treadmill/Outdoors", "type": "timed" },
         { "name": "Cycling", "muscle": "Legs, Cardiovascular", "equipment": "Stationary Bike/Bicycle", "type": "timed" },
         { "name": "Jumping Jacks", "muscle": "Full Body", "equipment": "Bodyweight", "type": "timed" },
-        { "name": "Burpees", "muscle": "Full Body", "equipment": "Bodyweight", "type": "bodyweight" }
+        { "name": "Burpees", "muscle": "Full Body", "equipment": "Bodyweight", "type": "bodyweight" },
+        { "name": "Rowing", "muscle": "Full Body", "equipment": "Rowing Machine", "type": "timed" },
+        { "name": "Mountain Climbers", "muscle": "Full Body", "equipment": "Bodyweight", "type": "timed" },
+        { "name": "Jump Rope", "muscle": "Full Body", "equipment": "Jump Rope", "type": "timed" },
+        { "name": "High Knees", "muscle": "Full Body", "equipment": "Bodyweight", "type": "timed" },
+        { "name": "Elliptical", "muscle": "Full Body", "equipment": "Elliptical Machine", "type": "timed" }
       ]
     }
   ]
-} 
+}
