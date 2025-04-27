@@ -59,6 +59,7 @@ interface RankInfo {
   color: string;
   minXP: number;
   letter: string;
+  power: number;
 }
 
 interface Friend {
@@ -74,14 +75,22 @@ interface Friend {
 }
 
 const RANKS: RankInfo[] = [
-  { name: 'Bronze', logo: require('@/assets/images/logos/bronzerank.png'), color: '#CD7F32', minXP: 0, letter: 'F' },
-  { name: 'Silver', logo: require('@/assets/images/logos/silverrank.png'), color: '#C0C0C0', minXP: 50, letter: 'D' },
-  { name: 'Gold', logo: require('@/assets/images/logos/goldrank.png'), color: '#FFD700', minXP: 150, letter: 'C' },
-  { name: 'Platinum', logo: require('@/assets/images/logos/platinumrank.png'), color: '#E5E4E2', minXP: 300, letter: 'B' },
-  { name: 'Diamond', logo: require('@/assets/images/logos/diamondrank.png'), color: '#B9F2FF', minXP: 500, letter: 'A' },
-  { name: 'Master', logo: require('@/assets/images/logos/masterrank.png'), color: '#9932CC', minXP: 700, letter: 'S' },
-  { name: 'Legend', logo: require('@/assets/images/logos/legendrank.png'), color: '#FF0000', minXP: 900, letter: 'SS' },
+  { name: 'Bronze', logo: require('@/assets/images/logos/bronzerank.png'), color: '#CD7F32', minXP: 0, letter: 'F', power: 0 },
+  { name: 'Silver', logo: require('@/assets/images/logos/silverrank.png'), color: '#C0C0C0', minXP: 50, letter: 'D', power: 1 },
+  { name: 'Gold', logo: require('@/assets/images/logos/goldrank.png'), color: '#FFD700', minXP: 150, letter: 'C', power: 2 },
+  { name: 'Platinum', logo: require('@/assets/images/logos/platinumrank.png'), color: '#E5E4E2', minXP: 300, letter: 'B', power: 3 },
+  { name: 'Diamond', logo: require('@/assets/images/logos/diamondrank.png'), color: '#B9F2FF', minXP: 500, letter: 'A', power: 4 },
+  { name: 'Master', logo: require('@/assets/images/logos/masterrank.png'), color: '#9932CC', minXP: 700, letter: 'S', power: 5 },
+  { name: 'Legend', logo: require('@/assets/images/logos/legendrank.png'), color: '#FF0000', minXP: 900, letter: 'SS', power: 6 },
 ];
+
+const ITEM_POWER_LEVELS = {
+  common: 5,
+  uncommon: 7,
+  rare: 10,
+  epic: 20,
+  legendary: 50
+};
 
 const getRankInfo = (xp: number): RankInfo => {
   return RANKS.reduce((currentRank, rank) => {
@@ -524,6 +533,14 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  powerLevelContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  powerLevelText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });
 
 export default function ProfileScreen() {
@@ -747,7 +764,6 @@ export default function ProfileScreen() {
 
   const fetchAllUsers = async () => {
     try {
-      console.log('Fetching all users...');
       const { data: allUsers, error } = await supabase
         .from('users')
         .select('*')
@@ -757,19 +773,6 @@ export default function ProfileScreen() {
         console.error('Error fetching all users:', error);
         return;
       }
-
-      console.log('All users in database:', allUsers.map(user => ({
-        id: user.id,
-        name: user.name,
-        level: user.level,
-        chest_xp: user.chest_xp,
-        back_xp: user.back_xp,
-        legs_xp: user.legs_xp,
-        shoulders_xp: user.shoulders_xp,
-        arms_xp: user.arms_xp,
-        core_xp: user.core_xp,
-        cardio_xp: user.cardio_xp
-      })));
     } catch (err) {
       console.error('Error in fetchAllUsers:', err);
     }
@@ -1090,6 +1093,34 @@ export default function ProfileScreen() {
     );
   };
 
+  const calculateTotalPowerLevel = () => {
+    let totalPower = 0;
+    
+    // Calculate power from muscle groups
+    const muscleGroups = [
+      { xp: userStats?.chest_xp || 0 },
+      { xp: userStats?.back_xp || 0 },
+      { xp: userStats?.legs_xp || 0 },
+      { xp: userStats?.shoulders_xp || 0 },
+      { xp: userStats?.arms_xp || 0 },
+      { xp: userStats?.core_xp || 0 },
+      { xp: userStats?.cardio_xp || 0 }
+    ];
+
+    muscleGroups.forEach(group => {
+      const rank = getRankInfo(group.xp);
+      totalPower += rank.power;
+    });
+
+    // Calculate power from equipped items
+    const equippedItems = items.filter(item => item.is_equipped);
+    equippedItems.forEach(item => {
+      totalPower += ITEM_POWER_LEVELS[item.rarity] || 0;
+    });
+
+    return totalPower;
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
@@ -1211,10 +1242,14 @@ export default function ProfileScreen() {
                   ]} 
                 />
               </View>
+              <View style={styles.powerLevelContainer}>
+                <ThemedText style={styles.powerLevelText}>
+                  Total Power Level: {calculateTotalPowerLevel()}
+                </ThemedText>
+              </View>
             </ThemedView>
 
             <ThemedView style={styles.statsCard}>
-              <ThemedText style={styles.sectionTitle}>Muscle Group Progress</ThemedText>
               <MuscleGroupRadialChart 
                 muscleGroups={[
                   { name: 'Arms', xp: userStats?.arms_xp || 0 },
