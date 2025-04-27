@@ -30,6 +30,8 @@ export default function TabLayout() {
           },
           default: {},
         }),
+        lazy: false,
+        detachInactiveScreens: false,
       }}>
       
       <Tabs.Screen

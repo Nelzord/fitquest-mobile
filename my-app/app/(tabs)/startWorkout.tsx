@@ -1311,7 +1311,7 @@ export default function StartWorkoutScreen() {
             />
 
             <View style={styles.filterContainer}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.filterGrid}>
                 {workoutCategories.map((category) => (
                   <TouchableOpacity
                     key={category}
@@ -1329,7 +1329,7 @@ export default function StartWorkoutScreen() {
                     </ThemedText>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
             </View>
 
             <SectionList
@@ -1617,9 +1617,15 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 15,
     marginHorizontal: 15,
+    marginBottom: 15,
     backgroundColor: Colors[colorScheme].inputBackground,
     color: Colors[colorScheme].inputText,
     fontSize: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
   },
   filterContainer: {
     paddingVertical: 15,
@@ -1627,48 +1633,67 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     borderBottomWidth: 1, 
     borderBottomColor: Colors[colorScheme].borderColor,
   },
+  filterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 10,
+  },
   filterButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
-    marginRight: 10,
     backgroundColor: Colors[colorScheme].secondaryBackground,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    alignItems: 'center',
   },
   filterButtonActive: {
     backgroundColor: Colors[colorScheme].tint,
   },
   filterButtonText: {
-    color: Colors[colorScheme].text,
+    fontSize: 14,
     fontWeight: '500',
+    color: Colors[colorScheme].text,
   },
   filterButtonTextActive: {
-    color: colorScheme === 'dark' ? Colors.dark.buttonTextPrimary : Colors.light.buttonTextPrimary,
+    color: Colors[colorScheme].background,
   },
   modalList: {
     flex: 1,
     paddingHorizontal: 15,
   },
   modalSectionHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 15,
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    paddingVertical: 10,
     color: Colors[colorScheme].text,
     backgroundColor: Colors[colorScheme].background,
   },
   modalItem: {
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors[colorScheme].borderColor,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    backgroundColor: Colors[colorScheme].cardBackground,
+    borderRadius: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   modalItemText: {
     fontSize: 16,
+    fontWeight: '600',
     color: Colors[colorScheme].text,
+    marginBottom: 4,
   },
   modalItemSubText: {
-    fontSize: 13,
+    fontSize: 14,
     color: Colors[colorScheme].placeholderText,
-    marginTop: 2,
   },
   closeButton: {
     backgroundColor: Colors[colorScheme].danger,
