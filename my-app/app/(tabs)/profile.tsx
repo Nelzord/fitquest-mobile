@@ -482,6 +482,48 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     backgroundColor: Colors[colorScheme].background,
     marginBottom: 8,
   },
+  premiumCard: {
+    padding: 16,
+    borderRadius: 12,
+    margin: 16,
+    gap: 16,
+  },
+  premiumTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  benefitTextContainer: {
+    flex: 1,
+  },
+  benefitTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  benefitDescription: {
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  premiumButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  premiumButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });
 
 export default function ProfileScreen() {
@@ -1205,10 +1247,44 @@ export default function ProfileScreen() {
       case 'premium':
         return (
           <View style={[styles.container, { paddingTop: insets.top }]}>
-            <View style={styles.historyHeader}>
-              <ThemedText style={styles.title}>Premium</ThemedText>
-            </View>
-            <ThemedText>Premium features coming soon!</ThemedText>
+            <ScrollView style={styles.contentContainer}>
+              <ThemedView style={styles.premiumCard}>
+                <ThemedText style={styles.premiumTitle}>Premium Benefits</ThemedText>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="xmark.circle" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>No Ads</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      Enjoy an uninterrupted workout experience without any advertisements
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="star.circle" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>Double XP & Gold</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      Earn twice the XP and gold from every workout to level up faster
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="brain.head.profile" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>AI Workout Analysis</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      Get personalized tips and analysis on your workouts from our AI
+                    </ThemedText>
+                  </View>
+                </View>
+              </ThemedView>
+              <TouchableOpacity 
+                style={[styles.premiumButton, { backgroundColor: Colors[colorScheme].tint }]}
+                onPress={() => Alert.alert('Premium Not Available', 'Premium features will be available soon!')}
+              >
+                <ThemedText style={styles.premiumButtonText}>Join Premium Now</ThemedText>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         );
     }

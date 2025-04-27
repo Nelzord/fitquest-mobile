@@ -39,7 +39,7 @@ export default function LoginScreen() {
       <View style={styles.content}>
         <View style={styles.header}>
           <IconSymbol name="figure.walk" size={60} color={Colors[colorScheme].tint} />
-          <ThemedText type="title" style={styles.title}>Welcome to FitQuest</ThemedText>
+          <ThemedText type="title" style={styles.title}>Welcome to GymSaga</ThemedText>
           <ThemedText style={styles.subtitle}>Track your fitness journey</ThemedText>
         </View>
         

@@ -38,7 +38,7 @@ export default function SignupScreen() {
         <View style={styles.header}>
           <IconSymbol name="figure.walk" size={60} color={Colors[colorScheme].tint} />
           <ThemedText type="title" style={styles.title}>Create Account</ThemedText>
-          <ThemedText style={styles.subtitle}>Join FitQuest today</ThemedText>
+          <ThemedText style={styles.subtitle}>Join GymSaga today</ThemedText>
         </View>
         
         <View style={styles.inputContainer}>
