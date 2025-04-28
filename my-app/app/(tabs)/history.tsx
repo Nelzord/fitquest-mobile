@@ -115,6 +115,28 @@ export default function HistoryScreen() {
     }
   }, [activeTab, progressionMetric, selectedExercise, setRange]);
 
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchWorkouts(),
+        fetchWorkoutStats(),
+        fetchExercises(),
+        fetchProgressionData()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      refreshData();
+    }
+  }, [user]);
+
   const fetchWorkouts = async () => {
     try {
       const { data, error } = await supabase
@@ -708,7 +730,7 @@ export default function HistoryScreen() {
             <View style={styles.historyHeader}>
           <ThemedText style={styles.title}>
             {selectedDate 
-              ? `Workouts on ${new Date(selectedDate).toLocaleDateString()}`
+              ? `Workouts on ${new Date(new Date(selectedDate).getTime() + 24 * 60 * 60 * 1000).toLocaleDateString()}`
               : 'History'
             }
           </ThemedText>

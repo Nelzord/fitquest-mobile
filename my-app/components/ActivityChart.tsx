@@ -20,9 +20,9 @@ type SquareData = {
 const { width } = Dimensions.get('window');
 const PADDING = 16;
 const COLUMNS = 7;
-const SQUARE_GAP = 3;
+const SQUARE_GAP = 2;
 const AVAILABLE_WIDTH = width - PADDING * 2;
-const SQUARE_SIZE = Math.floor((AVAILABLE_WIDTH - (SQUARE_GAP * (COLUMNS - 1))) / COLUMNS) / 2;
+const SQUARE_SIZE = Math.floor((AVAILABLE_WIDTH - (SQUARE_GAP * (COLUMNS - 1))) / COLUMNS) / 1.5;
 const LEGEND_SQUARE_SIZE = 8;
 
 export const ActivityChart: React.FC<ActivityChartProps> = ({
@@ -33,29 +33,24 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
   const colorScheme = useColorScheme() ?? 'light';
   const today = new Date();
 
-  // Generate past 30 days (trimmed to include leading blanks)
-  const past30: SquareData[] = [...Array(30)].map((_, i) => {
+  // Generate exactly 28 days including today (no blanks)
+  const past30: SquareData[] = [];
+  for (let i = 0; i < 28; i++) {
     const date = new Date(today);
-    date.setDate(today.getDate() - (29 - i));
+    date.setHours(0, 0, 0, 0); // Set to start of day to avoid timezone issues
+    date.setDate(today.getDate() - (27 - i));
     const iso = date.toISOString().split('T')[0];
     const match = data.find(d => d.date === iso);
-    return { date: iso, count: match?.count || 0 };
-  });
+    past30.push({ date: iso, count: match?.count || 0 });
+  }
 
-  // Calculate how many empty squares to pad from the beginning
-  const startWeekday = (new Date(past30[0].date!).getDay() + 6) % 7;
-  const padding = Array(startWeekday).fill({});
+  // Final grid squares: just past30, no padding
+  const squares: SquareData[] = [...past30];
 
-  // Now only keep enough past30 items to make total = 30
-  const daysToShow = 30 - padding.length;
-  const slicedData = past30.slice(past30.length - daysToShow);
-
-  // Final grid squares
-  const squares: SquareData[] = [...padding, ...slicedData];
-  // Split into rows
+  // Split into rows of 7 squares
   const rows: SquareData[][] = [];
-  for (let i = 0; i < squares.length; i += 6) {
-    rows.push(squares.slice(i, i + 6));
+  for (let i = 0; i < squares.length; i += 7) {
+    rows.push(squares.slice(i, i + 7));
   }
 
   const getColor = (count?: number) => {
@@ -73,6 +68,8 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 1); // Add one day to the displayed date
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 

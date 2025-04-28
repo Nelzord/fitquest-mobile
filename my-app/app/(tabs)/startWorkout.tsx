@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import WorkoutCompletionModal from '@/components/WorkoutCompletionModal';
 import { getItemImage } from '@/components/EquippedItems';
+import { useRouter } from 'expo-router';
 
 interface CommonExercise {
   name: string;
@@ -525,6 +526,7 @@ export default function StartWorkoutScreen() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [backgroundTime, setBackgroundTime] = useState<number | null>(null);
   const appState = useRef(AppState.currentState);
+  const router = useRouter();
 
   // Memoize filtered data - now includes category filtering
   const filteredWorkoutData = useMemo(() => {
@@ -1074,6 +1076,8 @@ export default function StartWorkoutScreen() {
       setNotes('');
       setTime(0);
 
+      // Navigate to history with a replace to ensure fresh render
+      router.replace('/history');
     } catch (error) {
       console.error('Error saving workout:', error);
       Alert.alert(
