@@ -728,13 +728,7 @@ export default function HistoryScreen() {
                 filteredWorkouts.length === 0 ? (
                   <View style={styles.emptyContainer}>
                     <IconSymbol name="dumbbell" size={48} color={Colors[colorScheme].tint} />
-                    <ThemedText style={styles.emptyText}>No workouts recorded yet</ThemedText>
-                    <TouchableOpacity 
-                      style={styles.startButton}
-                      onPress={() => router.push('/(tabs)/startWorkout')}
-                    >
-                      <ThemedText style={styles.startButtonText}>Start Your First Workout</ThemedText>
-                    </TouchableOpacity>
+                    <ThemedText style={styles.emptyText}>No workouts recorded</ThemedText>
                   </View>
                 ) : null
               }

@@ -282,7 +282,7 @@ export default function InventoryScreen() {
         return (
           <View style={styles(colorScheme).tabContent}>
             <ThemedText style={styles(colorScheme).sectionTitle}>Achievements</ThemedText>
-            <AchievementsList />
+            <AchievementsList onAchievementUnlocked={fetchItems} />
           </View>
         );
       case 'items':

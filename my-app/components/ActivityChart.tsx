@@ -12,10 +12,10 @@ interface ActivityChartProps {
   selectedDate?: string;
 }
 
-interface SquareData {
+type SquareData = {
   date?: string;
   count?: number;
-}
+};
 
 const { width } = Dimensions.get('window');
 const PADDING = 16;
@@ -33,7 +33,7 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
   const colorScheme = useColorScheme() ?? 'light';
   const today = new Date();
 
-    // Generate past 30 days (trimmed to include leading blanks)
+  // Generate past 30 days (trimmed to include leading blanks)
   const past30: SquareData[] = [...Array(30)].map((_, i) => {
     const date = new Date(today);
     date.setDate(today.getDate() - (29 - i));
@@ -66,6 +66,16 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
     return '#216E39';
   };
 
+  const getTextColor = (count?: number) => {
+    if (count == null || count === 0) return Colors[colorScheme].text;
+    return '#FFFFFF';
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.header}>
@@ -88,7 +98,13 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
                     borderColor: Colors[colorScheme].tint,
                   },
                 ]}
-              />
+              >
+                {item.date && (
+                  <ThemedText style={[styles.squareText, { color: getTextColor(item.count) }]}>
+                    {formatDate(item.date)}
+                  </ThemedText>
+                )}
+              </TouchableOpacity>
             ))}
           </View>
         ))}
@@ -139,6 +155,12 @@ const styles = StyleSheet.create({
     width: SQUARE_SIZE,
     height: SQUARE_SIZE,
     borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  squareText: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   legend: {
     flexDirection: 'row',

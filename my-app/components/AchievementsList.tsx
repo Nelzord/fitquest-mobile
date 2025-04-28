@@ -32,7 +32,7 @@ type UserStats = {
   cardio_xp: number;
 };
 
-export function AchievementsList() {
+export function AchievementsList({ onAchievementUnlocked }: { onAchievementUnlocked?: () => void }) {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -131,7 +131,7 @@ export function AchievementsList() {
             try {
               // First check if the user already has this item
               const { data: existingItem, error: checkItemError } = await supabase
-                .from('inventory')
+                .from('user_inventory')
                 .select('*')
                 .eq('user_id', user?.id)
                 .eq('item_id', achievement.item_id)
@@ -145,11 +145,11 @@ export function AchievementsList() {
               // If item doesn't exist, add it
               if (!existingItem) {
                 const { error: inventoryError } = await supabase
-                  .from('inventory')
+                  .from('user_inventory')
                   .insert({
                     user_id: user?.id,
                     item_id: achievement.item_id,
-                    quantity: 1
+                    is_equipped: false
                   });
 
                 if (inventoryError) {
@@ -162,18 +162,6 @@ export function AchievementsList() {
                     hint: inventoryError.hint
                   });
                   throw inventoryError;
-                }
-              } else {
-                // If item exists, increment quantity
-                const { error: updateError } = await supabase
-                  .from('inventory')
-                  .update({ quantity: existingItem.quantity + 1 })
-                  .eq('user_id', user?.id)
-                  .eq('item_id', achievement.item_id);
-
-                if (updateError) {
-                  console.error('Error updating item quantity:', updateError);
-                  throw updateError;
                 }
               }
             } catch (itemError: any) {
@@ -192,6 +180,11 @@ export function AchievementsList() {
           // Show unlock modal
           setUnlockedAchievement(achievement);
           setShowUnlockModal(true);
+
+          // Call the callback to refresh inventory data
+          if (onAchievementUnlocked) {
+            onAchievementUnlocked();
+          }
         } catch (error: any) {
           console.error('Error unlocking achievement:', error);
           // If it's a duplicate key error, just update local state
