@@ -113,14 +113,14 @@ const ExerciseItem = ({
   onAddSet,
   onUpdateSet,
   onRemoveSet,
-  onRemoveExercise
+  onRemoveExercise,
 }: {
-  item: Exercise,
-  onUpdateName: (id: string, name: string) => void,
-  onAddSet: (exerciseId: string) => void,
-  onUpdateSet: (exerciseId: string, setId: string, field: keyof Set, value: string | boolean) => void,
-  onRemoveSet: (exerciseId: string, setId: string) => void,
-  onRemoveExercise: (exerciseId: string) => void
+  item: Exercise;
+  onUpdateName: (id: string, name: string) => void;
+  onAddSet: (exerciseId: string) => void;
+  onUpdateSet: (exerciseId: string, setId: string, field: keyof Set, value: string | boolean) => void;
+  onRemoveSet: (exerciseId: string, setId: string) => void;
+  onRemoveExercise: (id: string) => void;
 }) => {
   const colorScheme = useRNColorScheme() ?? 'light';
   const styles = getStyles(colorScheme);
@@ -235,7 +235,12 @@ const ExerciseItem = ({
       {/* Panel Header */} 
       <View style={styles.panelHeader}>
         {/* Minimize Button (Wraps Input and Chevron) */}
-        <TouchableOpacity style={styles.minimizeTouchable} onPress={() => setIsMinimized(!isMinimized)} activeOpacity={0.7}>
+        <TouchableOpacity 
+          style={styles.minimizeTouchable} 
+          onPress={() => setIsMinimized(!isMinimized)} 
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <TextInput
             style={styles.exerciseNameInput}
             placeholder="Exercise Name"
@@ -247,11 +252,15 @@ const ExerciseItem = ({
             name={isMinimized ? "chevron.down" : "chevron.up"} 
             size={20} 
             color={Colors[colorScheme].icon} 
-            style={styles.chevronIcon} // Add some margin
+            style={styles.chevronIcon}
           />
         </TouchableOpacity>
         {/* Delete Exercise Button */}
-        <TouchableOpacity onPress={() => onRemoveExercise(item.id)} style={styles.deleteExerciseButton}>
+        <TouchableOpacity 
+          onPress={() => onRemoveExercise(item.id)} 
+          style={styles.deleteExerciseButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
           <IconSymbol name="trash" size={18} color={Colors[colorScheme].danger} />
         </TouchableOpacity>
       </View>
@@ -274,6 +283,7 @@ const ExerciseItem = ({
                 style={styles.removeSetButton} 
                 onPress={() => onRemoveSet(item.id, set.id)}
                 disabled={set.completed}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <IconSymbol 
                   name="minus.circle" 
@@ -292,6 +302,7 @@ const ExerciseItem = ({
               <TouchableOpacity 
                 style={styles.setCheckmarkButton} 
                 onPress={() => onUpdateSet(item.id, set.id, 'completed', !set.completed)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <IconSymbol 
                   name={set.completed ? "checkmark.circle.fill" : "circle"} 
@@ -302,12 +313,14 @@ const ExerciseItem = ({
             </View>
           ))}
 
-          {/* Add Set/Entry Button (Consider changing text based on type) */}
-          <TouchableOpacity style={styles.addSetButton} onPress={() => onAddSet(item.id)}>
-            <IconSymbol name="plus" size={16} color={Colors[colorScheme].tint} />
-            <ThemedText style={styles.addSetButtonText}>
-              {item.type === 'timed' ? ' Add Entry' : ' Add Set'} 
-            </ThemedText>
+          {/* Add Set/Entry Button */}
+          <TouchableOpacity 
+            style={styles.addSetButton} 
+            onPress={() => onAddSet(item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol name="plus.circle" size={18} color={Colors[colorScheme].tint} />
+            <ThemedText style={styles.addSetText}>Add Set</ThemedText>
           </TouchableOpacity>
         </View>
       )}
@@ -1557,11 +1570,10 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     borderColor: Colors[colorScheme].tint,
     borderStyle: 'dashed',
   },
-  addSetButtonText: {
-    color: Colors[colorScheme].tint,
-    marginLeft: 5,
+  addSetText: {
     fontSize: 14,
-    fontWeight: '500',
+    color: Colors[colorScheme].tint,
+    marginLeft: 4,
   },
   exerciseInput: {
     borderWidth: 1,
