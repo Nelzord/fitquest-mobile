@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, TextInput, Alert, Clipboard } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, TextInput, Alert, Clipboard, Modal } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -541,6 +541,101 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  friendProfileModal: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: Colors[colorScheme].cardBackground,
+    borderRadius: 12,
+    padding: 20,
+  },
+  friendProfileHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  friendProfileTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  friendProfileStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  friendProfileStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  friendProfileStatText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  friendProfileDetails: {
+    marginBottom: 20,
+    gap: 12,
+  },
+  friendProfileDetailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors[colorScheme].borderColor,
+  },
+  friendProfileDetailLabel: {
+    fontSize: 16,
+    opacity: 0.7,
+  },
+  friendProfileDetailValue: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  muscleGroupList: {
+    gap: 12,
+  },
+  muscleGroupListItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: Colors[colorScheme].background,
+    borderRadius: 8,
+  },
+  muscleGroupInfoContainer: {
+    gap: 4,
+  },
+  muscleGroupLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  muscleGroupXPValue: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  muscleGroupRankContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  muscleGroupRankLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
 });
 
 export default function ProfileScreen() {
@@ -563,6 +658,9 @@ export default function ProfileScreen() {
   const isFetching = useRef(false);
   const [showFriendCode, setShowFriendCode] = useState(false);
   const [friendStats, setFriendStats] = useState<{ [key: string]: UserStats }>({});
+  const [showFriendProfile, setShowFriendProfile] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   const fetchItems = useCallback(async () => {
     if (!user) return;
@@ -954,12 +1052,146 @@ export default function ProfileScreen() {
     </View>
   );
 
+  const fetchFriendStats = async (friendId: string) => {
+    if (isLoadingStats) {
+      return;
+    }
+    
+    try {
+      setIsLoadingStats(true);
+      
+      const { data, error } = await supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', friendId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+      
+      setFriendStats(prev => ({
+        ...prev,
+        [friendId]: data
+      }));
+    } catch (error) {
+      console.error('Error in fetchFriendStats:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const FriendProfileModal = ({ friend, visible, onClose }: { friend: Friend, visible: boolean, onClose: () => void }) => {
+    const [localFriendStats, setLocalFriendStats] = useState<UserStats | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+      if (!visible || !friend.friend_id) {
+        return;
+      }
+
+      const existingStats = friendStats[friend.friend_id];
+      if (existingStats) {
+        setLocalFriendStats(existingStats);
+        return;
+      }
+
+      if (!isLoading) {
+        setIsLoading(true);
+        fetchFriendStats(friend.friend_id)
+          .finally(() => {
+            setIsLoading(false);
+          });
+      }
+    }, [visible, friend.friend_id]);
+
+    useEffect(() => {
+      if (friend.friend_id && friendStats[friend.friend_id]) {
+        setLocalFriendStats(friendStats[friend.friend_id]);
+      }
+    }, [friend.friend_id, friendStats[friend.friend_id]]);
+
+    const displayName = friend.friend_name.split('@')[0];
+
+    if (!visible) {
+      return null;
+    }
+
+    const getMuscleGroupRank = (xp: number) => {
+      return RANKS.reduce((currentRank, rank) => {
+        return xp >= rank.minXP ? rank : currentRank;
+      }, RANKS[0]);
+    };
+
+    const muscleGroups = [
+      { name: 'Chest', xp: localFriendStats?.chest_xp || 0 },
+      { name: 'Back', xp: localFriendStats?.back_xp || 0 },
+      { name: 'Legs', xp: localFriendStats?.legs_xp || 0 },
+      { name: 'Shoulders', xp: localFriendStats?.shoulders_xp || 0 },
+      { name: 'Arms', xp: localFriendStats?.arms_xp || 0 },
+      { name: 'Core', xp: localFriendStats?.core_xp || 0 },
+      { name: 'Cardio', xp: localFriendStats?.cardio_xp || 0 }
+    ];
+
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+      >
+        <View style={styles.modalOverlay}>
+          <ThemedView style={styles.friendProfileModal}>
+            <View style={styles.friendProfileHeader}>
+              <ThemedText style={[styles.friendProfileTitle, { fontSize: 16 }]}>
+                {displayName}'s Muscle Ranks
+              </ThemedText>
+              <TouchableOpacity onPress={onClose}>
+                <IconSymbol name="xmark.circle.fill" size={24} color={Colors[colorScheme].text} />
+              </TouchableOpacity>
+            </View>
+
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors[colorScheme].tint} />
+                <ThemedText style={{ marginTop: 10 }}>Loading stats...</ThemedText>
+              </View>
+            ) : (
+              <View style={styles.muscleGroupList}>
+                {muscleGroups.map((group) => {
+                  const rank = getMuscleGroupRank(group.xp);
+                  return (
+                    <View key={group.name} style={styles.muscleGroupListItem}>
+                      <View style={styles.muscleGroupInfoContainer}>
+                        <ThemedText style={styles.muscleGroupLabel}>{group.name}</ThemedText>
+                      </View>
+                      <View style={styles.muscleGroupRankContainer}>
+                        <Image 
+                          source={rank.logo} 
+                          style={styles.rankIcon}
+                          resizeMode="contain"
+                        />
+                        <ThemedText style={styles.muscleGroupRankLabel}>{rank.name}</ThemedText>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </ThemedView>
+        </View>
+      </Modal>
+    );
+  };
+
   const renderFriendItem = (friend: Friend, isRequest: boolean = false, isIncoming: boolean = false) => {
+    const displayName = friend.friend_name.split('@')[0];
+    
     return (
       <View key={friend.id} style={styles.friendItem}>
         <View style={styles.friendInfo}>
           <View>
-            <ThemedText style={styles.friendName}>{friend.friend_name}</ThemedText>
+            <ThemedText style={styles.friendName}>{displayName}</ThemedText>
             <View style={styles.friendStats}>
               <Image 
                 source={friend.friend_rank?.logo} 
@@ -1001,8 +1233,8 @@ export default function ProfileScreen() {
                 <TouchableOpacity 
                   style={[styles.viewProfileButton, { backgroundColor: Colors[colorScheme].tint }]}
                   onPress={() => {
-                    // TODO: Implement view profile logic
-                    Alert.alert('Coming Soon', 'View profile feature will be available soon!');
+                    setSelectedFriend(friend);
+                    setShowFriendProfile(true);
                   }}
                 >
                   <ThemedText style={styles.buttonText}>View Profile</ThemedText>
@@ -1337,6 +1569,16 @@ export default function ProfileScreen() {
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
       <TabBar />
       {renderContent()}
+      {selectedFriend && (
+        <FriendProfileModal 
+          friend={selectedFriend}
+          visible={showFriendProfile}
+          onClose={() => {
+            setShowFriendProfile(false);
+            setSelectedFriend(null);
+          }}
+        />
+      )}
     </ThemedView>
   );
 } 

@@ -329,57 +329,112 @@ const ExerciseItem = ({
   );
 };
 
-// Renamed and modified component for the top control panel
+const formatTime = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
+const TimerEditModal = ({ 
+  visible, 
+  onClose, 
+  onSave, 
+  initialTime 
+}: { 
+  visible: boolean, 
+  onClose: () => void, 
+  onSave: (time: number) => void,
+  initialTime: number 
+}) => {
+  const colorScheme = useRNColorScheme() ?? 'light';
+  const styles = getStyles(colorScheme);
+  const [editedTime, setEditedTime] = useState(initialTime);
+
+  const handleSave = () => {
+    if (editedTime > 18000) { // 5 hours in seconds
+      Alert.alert('Error', 'Workout duration cannot exceed 5 hours');
+      return;
+    }
+    onSave(editedTime);
+  };
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <ThemedView style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <ThemedText style={styles.modalTitle}>Edit Workout Duration</ThemedText>
+            <TouchableOpacity onPress={onClose}>
+              <IconSymbol name="xmark.circle.fill" size={24} color={Colors[colorScheme].text} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.timerEditContainer}>
+            <TextInput
+              style={styles.timerInput}
+              value={editedTime.toString()}
+              onChangeText={(text) => {
+                const value = parseInt(text) || 0;
+                setEditedTime(value);
+              }}
+              keyboardType="numeric"
+              placeholder="Enter duration in seconds"
+            />
+            <ThemedText style={styles.timerPreview}>
+              {formatTime(editedTime)}
+            </ThemedText>
+          </View>
+
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSave}
+          >
+            <ThemedText style={styles.saveButtonText}>Save Duration</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+      </View>
+    </Modal>
+  );
+};
+
 const TopWorkoutControlPanel = ({ 
   time, 
   onFinish,
   onReset,
   onCancel,
   isWorkoutActive,
-  isSaving
+  isSaving,
+  setTime
 }: {
   time: number,
   onFinish: () => void,
   onReset: () => void,
   onCancel: () => void,
   isWorkoutActive: boolean,
-  isSaving: boolean
+  isSaving: boolean,
+  setTime: (time: number) => void
 }) => {
   const colorScheme = useRNColorScheme() ?? 'light';
   const styles = getStyles(colorScheme);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleCancelPress = () => {
-    setShowCancelConfirm(true);
-  };
-
-  const handleConfirmCancel = () => {
-    setShowCancelConfirm(false);
-    onCancel();
-  };
-
-  const handleCancelCancel = () => {
-    setShowCancelConfirm(false);
-  };
-
-  if (!isWorkoutActive) {
-    return null;
-  }
+  const [showTimerEditModal, setShowTimerEditModal] = useState(false);
 
   return (
     <>
-      <View style={[
-        styles.topPanelContainer,
-        styles.topPanelActive
-      ]}>
+      <View style={[styles.topPanelContainer, styles.topPanelActive]}>
         <View style={styles.timerContainer}>
           <ThemedText style={styles.timerText}>{formatTime(time)}</ThemedText>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => setShowTimerEditModal(true)}
+          >
+            <IconSymbol name="pencil" size={16} color={Colors[colorScheme].tint} />
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.resetButton}
             onPress={onReset}
@@ -388,7 +443,7 @@ const TopWorkoutControlPanel = ({
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.cancelWorkoutButton}
-            onPress={handleCancelPress}
+            onPress={onCancel}
           >
             <IconSymbol name="xmark" size={16} color={Colors[colorScheme].danger} />
           </TouchableOpacity>
@@ -407,36 +462,15 @@ const TopWorkoutControlPanel = ({
           )}
         </TouchableOpacity>
       </View>
-
-      {/* Cancel Confirmation Modal */}
-      <Modal
-        visible={showCancelConfirm}
-        transparent={true}
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.confirmationModal}>
-            <ThemedText style={styles.confirmationTitle}>Cancel Workout?</ThemedText>
-            <ThemedText style={styles.confirmationText}>
-              Are you sure you want to cancel this workout? All progress will be lost.
-            </ThemedText>
-            <View style={styles.confirmationButtons}>
-              <TouchableOpacity 
-                style={[styles.confirmationButton, styles.cancelButton]}
-                onPress={handleCancelCancel}
-              >
-                <ThemedText style={styles.cancelButtonText}>No, Continue</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.confirmationButton, styles.confirmButton]}
-                onPress={handleConfirmCancel}
-              >
-                <ThemedText style={styles.confirmButtonText}>Yes, Cancel</ThemedText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <TimerEditModal
+        visible={showTimerEditModal}
+        onClose={() => setShowTimerEditModal(false)}
+        onSave={(newTime) => {
+          setTime(newTime);
+          setShowTimerEditModal(false);
+        }}
+        initialTime={time}
+      />
     </>
   );
 };
@@ -589,6 +623,12 @@ export default function StartWorkoutScreen() {
     setIsBrowsingModalVisible(false);
     setSearchTerm('');
     setSelectedCategory(null); // Reset category filter too
+
+    // Start the workout if it's the first exercise
+    if (exercises.length === 0) {
+      setIsWorkoutActive(true);
+      setTime(0);
+    }
   };
 
   const updateExerciseName = (id: string, name: string) => {
@@ -896,6 +936,27 @@ export default function StartWorkoutScreen() {
       return;
     }
 
+    // Check if all sets are marked as done
+    const incompleteSets = exercises.flatMap(exercise => {
+      return exercise.sets.filter(set => !set.completed).map(set => ({
+        exerciseName: exercise.name,
+        setNumber: exercise.sets.indexOf(set) + 1
+      }));
+    });
+
+    if (incompleteSets.length > 0) {
+      const errorMessage = `Please complete all sets before finishing:\n${incompleteSets.map(set => 
+        `- ${set.exerciseName} (Set ${set.setNumber})`
+      ).join('\n')}`;
+      
+      Alert.alert(
+        'Incomplete Sets',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     // Validate all sets before saving
     const invalidSets = exercises.flatMap(exercise => {
       return exercise.sets.filter(set => {
@@ -1189,6 +1250,16 @@ export default function StartWorkoutScreen() {
     fetchRecentWorkouts();
   }, []);
 
+  // Add cleanup effect for modal states
+  useEffect(() => {
+    return () => {
+      setIsBrowsingModalVisible(false);
+      setShowImportModal(false);
+      setShowCompletionModal(false);
+      setShowCancelConfirm(false);
+    };
+  }, []);
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -1204,60 +1275,69 @@ export default function StartWorkoutScreen() {
             onCancel={handleCancelWorkout}
             isWorkoutActive={isWorkoutActive} 
             isSaving={isSaving}
+            setTime={setTime}
           />
 
-          {!isWorkoutActive ? (
-            <View style={styles.startButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.startButton}
-                onPress={startWorkout}
-                activeOpacity={0.7}
-              >
-                <ThemedText style={styles.startButtonText}>Start Workout</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.importButton}
-                onPress={() => setShowImportModal(true)}
-                activeOpacity={0.7}
-              >
-                <IconSymbol name="arrow.down.circle" size={20} color={Colors[colorScheme].tint} />
-                <ThemedText style={styles.importButtonText}>Import Previous Routine</ThemedText>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <ScrollView 
-              contentContainerStyle={styles.scrollContainer}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              <FlatList
-                data={filterWorkouts(exercises)}
-                renderItem={({ item }) => (
-                  <ExerciseItem 
-                    item={item} 
-                    onUpdateName={updateExerciseName} 
-                    onAddSet={addSet}
-                    onUpdateSet={updateSet}
-                    onRemoveSet={removeSet}
-                    onRemoveExercise={removeExercise}
-                  />
-                )}
-                keyExtractor={(item, index) => item.id + index}
-                style={styles.exerciseList}
-                scrollEnabled={false}
-                ListFooterComponent={() => {
-                  if (!isWorkoutActive) return null;
-                  return (
+          <ScrollView 
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {!isWorkoutActive && exercises.length === 0 ? (
+              <View style={styles.startContainer}>
+                <ThemedText style={styles.startTitle}>Start Your Workout</ThemedText>
+                <ThemedText style={styles.startSubtitle}>Add an exercise to begin your workout</ThemedText>
+                
+                <TouchableOpacity 
+                  style={styles.secondaryButton}
+                  onPress={addExercise}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="plus.circle.fill" size={24} color={Colors[colorScheme].tint} />
+                  <ThemedText style={styles.secondaryButtonText}>Add Exercise</ThemedText>
+                </TouchableOpacity>
+
+                <View style={styles.dividerContainer}>
+                  <View style={styles.divider} />
+                  <ThemedText style={styles.orText}>or</ThemedText>
+                  <View style={styles.divider} />
+                </View>
+
+                <ThemedText style={styles.importSubtitle}>Load a previous workout routine</ThemedText>
+                <TouchableOpacity 
+                  style={styles.secondaryButton}
+                  onPress={() => setShowImportModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol name="arrow.down.circle" size={24} color={Colors[colorScheme].tint} />
+                  <ThemedText style={styles.secondaryButtonText}>Import Previous Routine</ThemedText>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <FlatList
+                  data={filterWorkouts(exercises)}
+                  renderItem={({ item }) => (
+                    <ExerciseItem 
+                      item={item} 
+                      onUpdateName={updateExerciseName} 
+                      onAddSet={addSet}
+                      onUpdateSet={updateSet}
+                      onRemoveSet={removeSet}
+                      onRemoveExercise={removeExercise}
+                    />
+                  )}
+                  keyExtractor={(item, index) => item.id + index}
+                  style={styles.exerciseList}
+                  scrollEnabled={false}
+                  ListFooterComponent={() => (
                     <TouchableOpacity style={styles.addButton} onPress={addExercise}>
                       <IconSymbol name="plus.circle.fill" size={20} color={Colors[colorScheme].tint} />
-                      <ThemedText style={styles.addButtonText}> Add Exercise</ThemedText>
+                      <ThemedText style={styles.addButtonText}>Add Exercise</ThemedText>
                     </TouchableOpacity>
-                  );
-                }}
-              />
+                  )}
+                />
 
-              {isWorkoutActive && (
                 <TextInput
                   style={styles.notesInput}
                   placeholder="Workout Notes (Optional)"
@@ -1266,9 +1346,9 @@ export default function StartWorkoutScreen() {
                   multiline
                   placeholderTextColor={Colors[colorScheme].placeholderText}
                 />
-              )}
-            </ScrollView>
-          )}
+              </>
+            )}
+          </ScrollView>
         </ThemedView>
       </TouchableWithoutFeedback>
 
@@ -1884,46 +1964,63 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  startButtonsContainer: {
+  startContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 15,
+    paddingVertical: 40,
+    gap: 20,
   },
-  startButton: {
+  startTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  startSubtitle: {
+    fontSize: 16,
+    color: Colors[colorScheme].placeholderText,
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  importSubtitle: {
+    fontSize: 16,
+    color: Colors[colorScheme].placeholderText,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 30,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: Colors[colorScheme].tint,
-    marginBottom: 25,
-    backgroundColor: Colors[colorScheme].secondaryBackground,
+    width: '80%',
+    marginVertical: 20,
   },
-  startButtonText: {
-    color: Colors[colorScheme].tint,
-    marginLeft: 12,
-    fontWeight: 'bold',
-    fontSize: 20,
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors[colorScheme].borderColor,
   },
-  importButton: {
+  orText: {
+    fontSize: 16,
+    color: Colors[colorScheme].placeholderText,
+    marginHorizontal: 10,
+  },
+  secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 15,
-    paddingHorizontal: 25,
+    paddingHorizontal: 30,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: Colors[colorScheme].tint,
     backgroundColor: Colors[colorScheme].secondaryBackground,
+    width: '80%',
   },
-  importButtonText: {
+  secondaryButtonText: {
     color: Colors[colorScheme].tint,
     marginLeft: 8,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 18,
   },
   importModal: {
     width: '80%',
@@ -1965,5 +2062,60 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
   importModalCloseButtonText: {
     color: Colors[colorScheme].text,
     fontWeight: '600',
+  },
+  timerEditContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  timerInput: {
+    width: '100%',
+    height: 50,
+    borderWidth: 1,
+    borderColor: Colors[colorScheme].borderColor,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 10,
+    fontSize: 16,
+    color: Colors[colorScheme].text,
+    backgroundColor: Colors[colorScheme].inputBackground,
+  },
+  timerPreview: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginVertical: 10,
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors[colorScheme].secondaryBackground,
+  },
+  saveButton: {
+    backgroundColor: Colors[colorScheme].tint,
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: Colors[colorScheme].background,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalContent: {
+    backgroundColor: Colors[colorScheme].cardBackground,
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 }); 

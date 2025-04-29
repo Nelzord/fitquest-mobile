@@ -105,8 +105,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   itemEffect: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 16,
   },
   buttonContainer: {
     flexDirection: 'row',
