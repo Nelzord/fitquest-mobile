@@ -13,6 +13,22 @@ import { Avatar } from '@/components/Avatar';
 import { MuscleGroupRadialChart } from '@/components/MuscleGroupRadialChart';
 import { Ionicons } from '@expo/vector-icons';
 import { EquippedItems } from '@/components/EquippedItems';
+import Constants from 'expo-constants';
+
+// Define types for IAP
+type IAPModule = typeof import('expo-in-app-purchases');
+type IAPResponse = {
+  responseCode: number;
+  results?: Array<{
+    acknowledged: boolean;
+    transactionReceipt?: string;
+    productId: string;
+    purchaseState: number;
+    purchaseTime: number;
+    orderId: string;
+  }>;
+  errorCode?: number;
+};
 
 interface UserStats {
   user_id: string;
@@ -72,6 +88,12 @@ interface Friend {
   friend_email: string;
   friend_level: number;
   friend_rank: RankInfo;
+}
+
+interface PremiumStatus {
+  isActive: boolean;
+  activatedDate: string | null;
+  tokens: number;
 }
 
 const RANKS: RankInfo[] = [
@@ -661,6 +683,8 @@ export default function ProfileScreen() {
   const [showFriendProfile, setShowFriendProfile] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [premiumStatus, setPremiumStatus] = useState<PremiumStatus | null>(null);
+  const [isLoadingPurchase, setIsLoadingPurchase] = useState(false);
 
   const fetchItems = useCallback(async () => {
     if (!user) return;
@@ -1353,6 +1377,87 @@ export default function ProfileScreen() {
     return totalPower;
   };
 
+  const renderPremiumContent = () => {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <ScrollView style={styles.contentContainer}>
+          <ThemedView style={styles.premiumCard}>
+            <ThemedText style={styles.premiumTitle}>
+              {premiumStatus?.isActive ? 'Premium Active' : 'Premium Benefits'}
+            </ThemedText>
+            
+            {premiumStatus?.isActive ? (
+              <>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="checkmark.circle" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>Premium Active</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      Activated on {new Date(premiumStatus.activatedDate!).toLocaleDateString()}
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="star.circle" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>Tokens</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      You have {premiumStatus.tokens} tokens
+                    </ThemedText>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="xmark.circle" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>No Ads</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      Enjoy an uninterrupted workout experience without any advertisements
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="star.circle" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>Double XP & Gold</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      Earn twice the XP and gold from every workout to level up faster
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={styles.benefitItem}>
+                  <IconSymbol name="brain.head.profile" size={24} color={Colors[colorScheme].tint} />
+                  <View style={styles.benefitTextContainer}>
+                    <ThemedText style={styles.benefitTitle}>AI Workout Analysis</ThemedText>
+                    <ThemedText style={styles.benefitDescription}>
+                      Get personalized tips and analysis on your workouts from our AI
+                    </ThemedText>
+                  </View>
+                </View>
+              </>
+            )}
+          </ThemedView>
+          
+          {!premiumStatus?.isActive && (
+            <TouchableOpacity 
+              style={[styles.premiumButton, { backgroundColor: Colors[colorScheme].tint }]}
+              onPress={handlePurchase}
+              disabled={isLoadingPurchase}
+            >
+              {isLoadingPurchase ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <ThemedText style={styles.premiumButtonText}>Join Premium Now</ThemedText>
+              )}
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'profile':
@@ -1512,48 +1617,180 @@ export default function ProfileScreen() {
           </View>
         );
       case 'premium':
-        return (
-          <View style={[styles.container, { paddingTop: insets.top }]}>
-            <ScrollView style={styles.contentContainer}>
-              <ThemedView style={styles.premiumCard}>
-                <ThemedText style={styles.premiumTitle}>Premium Benefits</ThemedText>
-                <View style={styles.benefitItem}>
-                  <IconSymbol name="xmark.circle" size={24} color={Colors[colorScheme].tint} />
-                  <View style={styles.benefitTextContainer}>
-                    <ThemedText style={styles.benefitTitle}>No Ads</ThemedText>
-                    <ThemedText style={styles.benefitDescription}>
-                      Enjoy an uninterrupted workout experience without any advertisements
-                    </ThemedText>
-                  </View>
-                </View>
-                <View style={styles.benefitItem}>
-                  <IconSymbol name="star.circle" size={24} color={Colors[colorScheme].tint} />
-                  <View style={styles.benefitTextContainer}>
-                    <ThemedText style={styles.benefitTitle}>Double XP & Gold</ThemedText>
-                    <ThemedText style={styles.benefitDescription}>
-                      Earn twice the XP and gold from every workout to level up faster
-                    </ThemedText>
-                  </View>
-                </View>
-                <View style={styles.benefitItem}>
-                  <IconSymbol name="brain.head.profile" size={24} color={Colors[colorScheme].tint} />
-                  <View style={styles.benefitTextContainer}>
-                    <ThemedText style={styles.benefitTitle}>AI Workout Analysis</ThemedText>
-                    <ThemedText style={styles.benefitDescription}>
-                      Get personalized tips and analysis on your workouts from our AI
-                    </ThemedText>
-                  </View>
-                </View>
-              </ThemedView>
-              <TouchableOpacity 
-                style={[styles.premiumButton, { backgroundColor: Colors[colorScheme].tint }]}
-                onPress={() => Alert.alert('Premium Not Available', 'Premium features will be available soon!')}
-              >
-                <ThemedText style={styles.premiumButtonText}>Join Premium Now</ThemedText>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        );
+        return renderPremiumContent();
+    }
+  };
+
+  // Initialize in-app purchases
+  useEffect(() => {
+    let iapModule: IAPModule | null = null;
+    let isMounted = true;
+
+    const initializePurchases = async () => {
+      // Skip IAP setup in Expo Go
+      if (Constants.appOwnership === 'expo') {
+        console.log('Skipping IAP setup in Expo Go');
+        return;
+      }
+
+      try {
+        console.log('Initializing in-app purchases...');
+        // Dynamically import the IAP module
+        const module = await import('expo-in-app-purchases');
+        iapModule = module;
+        
+        if (!isMounted) return;
+
+        await iapModule.connectAsync();
+        console.log('Connected to in-app purchases');
+        
+        await iapModule.setPurchaseListener(({ responseCode, results, errorCode }: IAPResponse) => {
+          console.log('Purchase listener triggered:', { responseCode, results, errorCode });
+          
+          if (responseCode === iapModule!.IAPResponseCode.OK && results) {
+            console.log('Purchase successful, processing results...');
+            results.forEach(async (purchase) => {
+              if (!purchase.acknowledged) {
+                console.log('Finishing transaction for purchase:', purchase);
+                await iapModule!.finishTransactionAsync(purchase, true);
+                if (purchase.transactionReceipt) {
+                  console.log('Handling successful purchase with receipt:', purchase.transactionReceipt);
+                  await handleSuccessfulPurchase(purchase.transactionReceipt);
+                }
+              }
+            });
+          } else if (responseCode === iapModule!.IAPResponseCode.USER_CANCELED) {
+            console.log('Purchase cancelled by user');
+            Alert.alert('Purchase Cancelled', 'Your purchase was cancelled.');
+          } else if (responseCode === iapModule!.IAPResponseCode.DEFERRED) {
+            console.log('Purchase deferred');
+            Alert.alert('Purchase Deferred', 'Your purchase has been deferred.');
+          } else {
+            console.log('Purchase error:', { responseCode, errorCode });
+            Alert.alert('Purchase Error', 'There was an error processing your purchase.');
+          }
+        });
+      } catch (error) {
+        console.error('Error initializing purchases:', error);
+      }
+    };
+
+    initializePurchases();
+    fetchPremiumStatus();
+
+    return () => {
+      isMounted = false;
+      if (iapModule && Constants.appOwnership !== 'expo') {
+        iapModule.disconnectAsync();
+      }
+    };
+  }, []);
+
+  const fetchPremiumStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('premium')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // If no data exists, set default non-premium status
+      if (!data || data.length === 0) {
+        setPremiumStatus({
+          isActive: false,
+          activatedDate: null,
+          tokens: 0
+        });
+        return;
+      }
+
+      // If data exists, set premium status
+      setPremiumStatus({
+        isActive: true,
+        activatedDate: data[0].activated_date,
+        tokens: data[0].tokens
+      });
+    } catch (error) {
+      console.error('Error fetching premium status:', error);
+      // Set default non-premium status on error
+      setPremiumStatus({
+        isActive: false,
+        activatedDate: null,
+        tokens: 0
+      });
+    }
+  };
+
+  const handleSuccessfulPurchase = async (receipt: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('premium')
+        .upsert({
+          user_id: user.id,
+          activated_date: new Date().toISOString(),
+          tokens: 100, // Initial tokens for premium users
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      setPremiumStatus({
+        isActive: true,
+        activatedDate: new Date().toISOString(),
+        tokens: 100
+      });
+
+      Alert.alert('Success', 'Your premium subscription has been activated!');
+    } catch (error) {
+      console.error('Error updating premium status:', error);
+      Alert.alert('Error', 'There was an error activating your premium subscription.');
+    }
+  };
+
+  const handlePurchase = async () => {
+    if (!user) return;
+
+    // Show message in Expo Go
+    if (Constants.appOwnership === 'expo') {
+      Alert.alert(
+        'Premium Not Available',
+        'In-app purchases are not available in Expo Go. Please build the app to test premium features.'
+      );
+      return;
+    }
+
+    console.log('Starting premium purchase process...');
+    setIsLoadingPurchase(true);
+    try {
+      console.log('Fetching product information...');
+      const iapModule = await import('expo-in-app-purchases');
+      const { responseCode, results } = await iapModule.getProductsAsync(['Premium']);
+      
+      console.log('Product fetch response:', { responseCode, results });
+      
+      if (responseCode === iapModule.IAPResponseCode.OK && results) {
+        const product = results[0];
+        if (product) {
+          console.log('Initiating purchase for product:', product);
+          await iapModule.purchaseItemAsync(product.productId);
+        } else {
+          console.log('No product found');
+          Alert.alert('Error', 'Could not find premium product.');
+        }
+      } else {
+        console.log('Error fetching product:', { responseCode });
+        Alert.alert('Error', 'Could not fetch product information.');
+      }
+    } catch (error) {
+      console.error('Error in purchase process:', error);
+      Alert.alert('Error', 'There was an error processing your purchase.');
+    } finally {
+      setIsLoadingPurchase(false);
     }
   };
 

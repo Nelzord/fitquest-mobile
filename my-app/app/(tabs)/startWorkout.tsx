@@ -105,6 +105,7 @@ interface WorkoutCompletionStats {
     xpBonus: ItemBonus | null;
     goldBonus: ItemBonus | null;
   }[];
+  workoutDetails: { name: string; sets: number; reps: number; weight: number }[];
 }
 
 // Update props to include set handlers
@@ -561,6 +562,7 @@ export default function StartWorkoutScreen() {
   const [backgroundTime, setBackgroundTime] = useState<number | null>(null);
   const appState = useRef(AppState.currentState);
   const router = useRouter();
+  const [aiFeedback, setAiFeedback] = useState<{ overall: string; suggestions: string } | null>(null);
 
   // Memoize filtered data - now includes category filtering
   const filteredWorkoutData = useMemo(() => {
@@ -1050,7 +1052,7 @@ export default function StartWorkoutScreen() {
         .from('workouts')
         .insert({
           user_id: user.id,
-          notes: notes,
+          notes: `${notes}\n\nAI Feedback:\n${aiFeedback?.overall || ''}\n\n${aiFeedback?.suggestions || ''}`,
           duration: Math.floor(time / 60), // Convert seconds to minutes
         })
         .select()
@@ -1125,7 +1127,18 @@ export default function StartWorkoutScreen() {
           core: { xp: 0, gold: 0 },
           cardio: { xp: 0, gold: 0 }
         },
-        equippedItems: statsUpdate?.equippedItems || []
+        equippedItems: statsUpdate?.equippedItems || [],
+        workoutDetails: exercises.map(exercise => ({
+          name: exercise.name,
+          sets: exercise.sets.filter(set => set.completed).length,
+          reps: exercise.sets.filter(set => set.completed).reduce((sum, set) => 
+            sum + (set.reps ? parseInt(set.reps) : 0), 0
+          ),
+          weight: exercise.type === 'standard' ? 
+            exercise.sets.filter(set => set.completed).reduce((sum, set) => 
+              sum + (set.weight ? parseFloat(set.weight) : 0), 0
+            ) / exercise.sets.filter(set => set.completed).length : 0
+        }))
       });
 
       // Show completion modal
@@ -1481,8 +1494,10 @@ export default function StartWorkoutScreen() {
             core: { xp: 0, gold: 0 },
             cardio: { xp: 0, gold: 0 }
           },
-          equippedItems: []
+          equippedItems: [],
+          workoutDetails: []
         }}
+        onFeedbackGenerated={(feedback) => setAiFeedback(feedback)}
       />
     </KeyboardAvoidingView>
   );

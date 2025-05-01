@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS user_roles CASCADE;
 DROP TABLE IF EXISTS user_inventory CASCADE;
 DROP TABLE IF EXISTS achievements CASCADE;
 DROP TABLE IF EXISTS friends;
+DROP TABLE IF EXISTS premium;
 
 -- Create the workouts table with statistics columns
 CREATE TABLE IF NOT EXISTS workouts (
@@ -619,5 +620,42 @@ GRANT ALL ON friends TO authenticated;
 -- Create trigger to update updated_at
 CREATE TRIGGER set_updated_at
     BEFORE UPDATE ON friends
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();
+
+-- Create the premium table
+CREATE TABLE premium (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    activated_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    tokens INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(user_id)
+);
+
+-- Enable RLS
+ALTER TABLE premium ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for premium table
+CREATE POLICY "Users can view their own premium status"
+    ON premium FOR SELECT
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own premium status"
+    ON premium FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own premium status"
+    ON premium FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- Grant permissions
+GRANT ALL ON premium TO authenticated;
+
+-- Create trigger to update updated_at
+CREATE TRIGGER set_updated_at
+    BEFORE UPDATE ON premium
     FOR EACH ROW
     EXECUTE FUNCTION set_updated_at();
