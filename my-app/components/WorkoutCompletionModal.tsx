@@ -95,69 +95,6 @@ const WorkoutCompletionModal: React.FC<WorkoutCompletionModalProps> = ({
     }
   }, [visible]);
 
-  useEffect(() => {
-    let iapModule: any = null;
-    let isMounted = true;
-
-    const initializePurchases = async () => {
-      // Skip IAP setup in Expo Go
-      if (Constants.appOwnership === 'expo') {
-        console.log('Skipping IAP setup in Expo Go');
-        return;
-      }
-
-      try {
-        console.log('Initializing in-app purchases...');
-        // Dynamically import the IAP module
-        const module = await import('expo-in-app-purchases');
-        iapModule = module;
-        
-        if (!isMounted) return;
-
-        await iapModule.connectAsync();
-        console.log('Connected to in-app purchases');
-        
-        await iapModule.setPurchaseListener(({ responseCode, results, errorCode }: any) => {
-          console.log('Purchase listener triggered:', { responseCode, results, errorCode });
-          
-          if (responseCode === iapModule.IAPResponseCode.OK && results) {
-            console.log('Purchase successful, processing results...');
-            results.forEach(async (purchase: any) => {
-              if (!purchase.acknowledged) {
-                console.log('Finishing transaction for purchase:', purchase);
-                await iapModule.finishTransactionAsync(purchase, true);
-                if (purchase.transactionReceipt) {
-                  console.log('Handling successful purchase with receipt:', purchase.transactionReceipt);
-                  await handleSuccessfulPurchase(purchase.transactionReceipt);
-                }
-              }
-            });
-          } else if (responseCode === iapModule.IAPResponseCode.USER_CANCELED) {
-            console.log('Purchase cancelled by user');
-            Alert.alert('Purchase Cancelled', 'Your purchase was cancelled.');
-          } else if (responseCode === iapModule.IAPResponseCode.DEFERRED) {
-            console.log('Purchase deferred');
-            Alert.alert('Purchase Deferred', 'Your purchase has been deferred.');
-          } else {
-            console.log('Purchase error:', { responseCode, errorCode });
-            Alert.alert('Purchase Error', 'There was an error processing your purchase.');
-          }
-        });
-      } catch (error) {
-        console.error('Error initializing purchases:', error);
-      }
-    };
-
-    initializePurchases();
-
-    return () => {
-      isMounted = false;
-      if (iapModule && Constants.appOwnership !== 'expo') {
-        iapModule.disconnectAsync();
-      }
-    };
-  }, []);
-
   const handleSuccessfulPurchase = async (receipt: string) => {
     if (!user) return;
 
