@@ -12,7 +12,7 @@ export const generateWorkoutFeedback = async (workoutData: {
   intensity: string;
 }, userId: string) => {
   try {
-    // Check if user has premium
+    // First check if user has premium and tokens
     const { data: premiumData, error: premiumError } = await supabase
       .from('premium')
       .select('tokens')
