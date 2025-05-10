@@ -563,6 +563,8 @@ export default function StartWorkoutScreen() {
   const appState = useRef(AppState.currentState);
   const router = useRouter();
   const [aiFeedback, setAiFeedback] = useState<{ overall: string; suggestions: string } | null>(null);
+  const [isFeedbackReady, setIsFeedbackReady] = useState(false);
+  const feedbackRef = useRef<{ overall: string; suggestions: string } | null>(null);
 
   // Memoize filtered data - now includes category filtering
   const filteredWorkoutData = useMemo(() => {
@@ -1047,78 +1049,38 @@ export default function StartWorkoutScreen() {
         }, 0), 0
       );
 
-      // 1. Create the workout record
-      const { data: workoutData, error: workoutError } = await supabase
-        .from('workouts')
-        .insert({
-          user_id: user.id,
-          notes: `${notes}\n\nAI Feedback:\n${aiFeedback?.overall || ''}\n\n${aiFeedback?.suggestions || ''}`,
-          duration: Math.floor(time / 60), // Convert seconds to minutes
-        })
-        .select()
-        .single();
+      // Check if user has tokens
+      const { data: premiumData, error: premiumError } = await supabase
+        .from('premium')
+        .select('tokens')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (workoutError) {
-        console.error('Workout error:', workoutError);
-        throw workoutError;
+      if (premiumError) {
+        console.error('Error fetching premium tokens:', premiumError);
+        throw premiumError;
       }
 
-      // 2. Create exercise records
-      for (const exercise of exercises) {
-        const { data: exerciseData, error: exerciseError } = await supabase
-          .from('exercises')
-          .insert({
-            workout_id: workoutData.id,
-            name: exercise.name,
-            type: exercise.type,
-          })
-          .select()
-          .single();
+      const hasTokens = premiumData?.tokens > 0;
+      console.log('User has tokens:', hasTokens);
 
-        if (exerciseError) throw exerciseError;
-
-        // 3. Create set records
-        for (const set of exercise.sets) {
-          if (!set.completed) continue; // Skip incomplete sets
-
-          // Parse duration string into minutes if it exists
-          let durationInMinutes = null;
-          if (set.duration) {
-            const [minutes, seconds] = set.duration.split(':').map(Number);
-            durationInMinutes = Math.round(minutes + (seconds / 60)); // Round to nearest integer
-          }
-
-          const { error: setError } = await supabase
-            .from('sets')
-            .insert({
-              exercise_id: exerciseData.id,
-              reps: set.reps ? parseInt(set.reps) : null,
-              weight: set.weight ? parseFloat(set.weight) : null,
-              duration: durationInMinutes,
-              distance: set.distance ? parseFloat(set.distance) : null,
-              completed: set.completed,
-            });
-
-          if (setError) throw setError;
-        }
-      }
-
-      // 4. Update user stats with XP and gold
-      const statsUpdate = await updateUserStats(totalSets);
+      // Reset feedback state
+      setAiFeedback(null);
+      setIsFeedbackReady(false);
 
       // Set completion stats for the modal
       setCompletionStats({
         totalSets,
         totalReps,
         totalVolume: Math.round(totalVolume),
-        xpGain: statsUpdate?.xpGain || 0,
-        goldGain: statsUpdate?.goldGain || 0,
-        currentLevel: statsUpdate?.newLevel || 1,
-        newLevel: statsUpdate?.newLevel || 1,
-        currentXP: statsUpdate?.newXP || 0,
-        requiredXP: calculateRequiredXP(statsUpdate?.newLevel || 1),
-        itemBonuses: statsUpdate?.itemBonuses || [],
-        muscleGroupGains: statsUpdate?.muscleGroupGains || {
+        xpGain: 0,
+        goldGain: 0,
+        currentLevel: 1,
+        newLevel: 1,
+        currentXP: 0,
+        requiredXP: calculateRequiredXP(1),
+        itemBonuses: [],
+        muscleGroupGains: {
           chest: { xp: 0, gold: 0 },
           back: { xp: 0, gold: 0 },
           legs: { xp: 0, gold: 0 },
@@ -1127,7 +1089,7 @@ export default function StartWorkoutScreen() {
           core: { xp: 0, gold: 0 },
           cardio: { xp: 0, gold: 0 }
         },
-        equippedItems: statsUpdate?.equippedItems || [],
+        equippedItems: [],
         workoutDetails: exercises.map(exercise => ({
           name: exercise.name,
           sets: exercise.sets.filter(set => set.completed).length,
@@ -1141,14 +1103,291 @@ export default function StartWorkoutScreen() {
         }))
       });
 
-      // Show completion modal
-      setShowCompletionModal(true);
+      // Show completion modal to generate AI feedback if user has tokens
+      if (hasTokens) {
+        console.log('Showing completion modal and waiting for AI feedback');
+        setShowCompletionModal(true);
 
+        // Create a promise that will be resolved when feedback is generated
+        const feedbackPromise = new Promise<{ overall: string; suggestions: string }>((resolve) => {
+          let attempts = 0;
+          const maxAttempts = 100; // 10 seconds maximum wait time
+          
+          const checkFeedback = () => {
+            console.log('Checking for feedback, attempt:', attempts + 1);
+            console.log('Current aiFeedback:', aiFeedback);
+            console.log('isFeedbackReady:', isFeedbackReady);
+            console.log('Feedback ref:', feedbackRef.current);
+            
+            if (feedbackRef.current && feedbackRef.current.overall && feedbackRef.current.suggestions) {
+              console.log('Complete AI feedback received:', feedbackRef.current);
+              resolve(feedbackRef.current);
+            } else {
+              attempts++;
+              if (attempts >= maxAttempts) {
+                console.log('Timeout waiting for AI feedback, proceeding without it');
+                resolve({ overall: '', suggestions: '' });
+              } else {
+                setTimeout(checkFeedback, 100);
+              }
+            }
+          };
+          checkFeedback();
+        });
+
+        // Wait for the feedback to be generated
+        console.log('Waiting for AI feedback to be generated...');
+        const feedback = await feedbackPromise;
+        console.log('AI feedback received, proceeding to save workout:', feedback);
+
+        // Only proceed with AI feedback if we actually received it
+        if (feedback.overall && feedback.suggestions) {
+          // 1. Create the workout record with AI feedback
+          const { data: workoutData, error: workoutError } = await supabase
+            .from('workouts')
+            .insert({
+              user_id: user.id,
+              notes: `${notes}\n\nAI Feedback:\n${feedback.overall}\n\n${feedback.suggestions}`,
+              duration: Math.floor(time / 60),
+            })
+            .select()
+            .single();
+
+          if (workoutError) {
+            console.error('Workout error:', workoutError);
+            throw workoutError;
+          }
+
+          console.log('Workout saved successfully with AI feedback:', workoutData);
+
+          // 2. Create exercise records
+          for (const exercise of exercises) {
+            const { data: exerciseData, error: exerciseError } = await supabase
+              .from('exercises')
+              .insert({
+                workout_id: workoutData.id,
+                name: exercise.name,
+                type: exercise.type,
+              })
+              .select()
+              .single();
+
+            if (exerciseError) throw exerciseError;
+
+            // 3. Create set records
+            for (const set of exercise.sets) {
+              if (!set.completed) continue;
+
+              let durationInMinutes = null;
+              if (set.duration) {
+                const [minutes, seconds] = set.duration.split(':').map(Number);
+                durationInMinutes = Math.round(minutes + (seconds / 60));
+              }
+
+              const { error: setError } = await supabase
+                .from('sets')
+                .insert({
+                  exercise_id: exerciseData.id,
+                  reps: set.reps ? parseInt(set.reps) : null,
+                  weight: set.weight ? parseFloat(set.weight) : null,
+                  duration: durationInMinutes,
+                  distance: set.distance ? parseFloat(set.distance) : null,
+                  completed: set.completed,
+                });
+
+              if (setError) throw setError;
+            }
+          }
+
+          // 4. Update user stats with XP and gold
+          const statsUpdate = await updateUserStats(totalSets);
+          console.log('User stats updated:', statsUpdate);
+
+          // Update completion stats with actual values
+          setCompletionStats(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              xpGain: statsUpdate?.xpGain || 0,
+              goldGain: statsUpdate?.goldGain || 0,
+              currentLevel: statsUpdate?.newLevel || 1,
+              newLevel: statsUpdate?.newLevel || 1,
+              currentXP: statsUpdate?.newXP || 0,
+              requiredXP: calculateRequiredXP(statsUpdate?.newLevel || 1),
+              itemBonuses: statsUpdate?.itemBonuses || [],
+              muscleGroupGains: statsUpdate?.muscleGroupGains || prev.muscleGroupGains,
+              equippedItems: statsUpdate?.equippedItems || []
+            };
+          });
+        } else {
+          console.log('No AI feedback received, saving workout without feedback');
+          // Save workout without AI feedback
+          const { data: workoutData, error: workoutError } = await supabase
+            .from('workouts')
+            .insert({
+              user_id: user.id,
+              notes: notes,
+              duration: Math.floor(time / 60),
+            })
+            .select()
+            .single();
+
+          if (workoutError) {
+            console.error('Workout error:', workoutError);
+            throw workoutError;
+          }
+
+          console.log('Workout saved successfully without AI feedback:', workoutData);
+
+          // Create exercise and set records
+          for (const exercise of exercises) {
+            const { data: exerciseData, error: exerciseError } = await supabase
+              .from('exercises')
+              .insert({
+                workout_id: workoutData.id,
+                name: exercise.name,
+                type: exercise.type,
+              })
+              .select()
+              .single();
+
+            if (exerciseError) throw exerciseError;
+
+            for (const set of exercise.sets) {
+              if (!set.completed) continue;
+
+              let durationInMinutes = null;
+              if (set.duration) {
+                const [minutes, seconds] = set.duration.split(':').map(Number);
+                durationInMinutes = Math.round(minutes + (seconds / 60));
+              }
+
+              const { error: setError } = await supabase
+                .from('sets')
+                .insert({
+                  exercise_id: exerciseData.id,
+                  reps: set.reps ? parseInt(set.reps) : null,
+                  weight: set.weight ? parseFloat(set.weight) : null,
+                  duration: durationInMinutes,
+                  distance: set.distance ? parseFloat(set.distance) : null,
+                  completed: set.completed,
+                });
+
+              if (setError) throw setError;
+            }
+          }
+
+          // Update user stats
+          const statsUpdate = await updateUserStats(totalSets);
+          console.log('User stats updated:', statsUpdate);
+
+          // Update completion stats
+          setCompletionStats(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              xpGain: statsUpdate?.xpGain || 0,
+              goldGain: statsUpdate?.goldGain || 0,
+              currentLevel: statsUpdate?.newLevel || 1,
+              newLevel: statsUpdate?.newLevel || 1,
+              currentXP: statsUpdate?.newXP || 0,
+              requiredXP: calculateRequiredXP(statsUpdate?.newLevel || 1),
+              itemBonuses: statsUpdate?.itemBonuses || [],
+              muscleGroupGains: statsUpdate?.muscleGroupGains || prev.muscleGroupGains,
+              equippedItems: statsUpdate?.equippedItems || []
+            };
+          });
+        }
+      } else {
+        console.log('Saving workout without AI feedback');
+        // If no tokens, save workout without AI feedback
+        const { data: workoutData, error: workoutError } = await supabase
+          .from('workouts')
+          .insert({
+            user_id: user.id,
+            notes: notes,
+            duration: Math.floor(time / 60),
+          })
+          .select()
+          .single();
+
+        if (workoutError) {
+          console.error('Workout error:', workoutError);
+          throw workoutError;
+        }
+
+        console.log('Workout saved successfully:', workoutData);
+
+        // Create exercise and set records
+        for (const exercise of exercises) {
+          const { data: exerciseData, error: exerciseError } = await supabase
+            .from('exercises')
+            .insert({
+              workout_id: workoutData.id,
+              name: exercise.name,
+              type: exercise.type,
+            })
+            .select()
+            .single();
+
+          if (exerciseError) throw exerciseError;
+
+          for (const set of exercise.sets) {
+            if (!set.completed) continue;
+
+            let durationInMinutes = null;
+            if (set.duration) {
+              const [minutes, seconds] = set.duration.split(':').map(Number);
+              durationInMinutes = Math.round(minutes + (seconds / 60));
+            }
+
+            const { error: setError } = await supabase
+              .from('sets')
+              .insert({
+                exercise_id: exerciseData.id,
+                reps: set.reps ? parseInt(set.reps) : null,
+                weight: set.weight ? parseFloat(set.weight) : null,
+                duration: durationInMinutes,
+                distance: set.distance ? parseFloat(set.distance) : null,
+                completed: set.completed,
+              });
+
+            if (setError) throw setError;
+          }
+        }
+
+        // Update user stats
+        const statsUpdate = await updateUserStats(totalSets);
+        console.log('User stats updated:', statsUpdate);
+
+        // Update completion stats
+        setCompletionStats(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            xpGain: statsUpdate?.xpGain || 0,
+            goldGain: statsUpdate?.goldGain || 0,
+            currentLevel: statsUpdate?.newLevel || 1,
+            newLevel: statsUpdate?.newLevel || 1,
+            currentXP: statsUpdate?.newXP || 0,
+            requiredXP: calculateRequiredXP(statsUpdate?.newLevel || 1),
+            itemBonuses: statsUpdate?.itemBonuses || [],
+            muscleGroupGains: statsUpdate?.muscleGroupGains || prev.muscleGroupGains,
+            equippedItems: statsUpdate?.equippedItems || []
+          };
+        });
+      }
+
+      // Show completion modal and reset state for all users
+      setShowCompletionModal(true);
+      
       // Reset the workout state
       setIsWorkoutActive(false);
       setExercises([]);
       setNotes('');
       setTime(0);
+      setAiFeedback(null);
+      setIsFeedbackReady(false);
 
       // Navigate to history with a replace to ensure fresh render
       router.replace('/history');
@@ -1497,7 +1736,12 @@ export default function StartWorkoutScreen() {
           equippedItems: [],
           workoutDetails: []
         }}
-        onFeedbackGenerated={(feedback) => setAiFeedback(feedback)}
+        onFeedbackGenerated={(feedback) => {
+          console.log('Feedback generated in modal:', feedback);
+          feedbackRef.current = feedback;
+          setAiFeedback(feedback);
+          setIsFeedbackReady(true);
+        }}
       />
     </KeyboardAvoidingView>
   );

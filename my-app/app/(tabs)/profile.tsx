@@ -1769,7 +1769,7 @@ export default function ProfileScreen() {
     try {
       console.log('Fetching product information...');
       const iapModule = await import('expo-in-app-purchases');
-      const { responseCode, results } = await iapModule.getProductsAsync(['Premium']);
+      const { responseCode, results } = await iapModule.getProductsAsync(['GymSagaPremium']);
       
       console.log('Product fetch response:', { responseCode, results });
       

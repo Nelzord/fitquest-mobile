@@ -232,15 +232,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Check if there's an active session first
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
 
+      // Always clear local state and redirect, even if there was no session
       setIsAuthenticated(false);
       setUser(null);
       router.replace('/(auth)/login');
     } catch (error) {
       console.error('Logout error:', error);
-      throw error;
+      // Still clear local state and redirect even if there's an error
+      setIsAuthenticated(false);
+      setUser(null);
+      router.replace('/(auth)/login');
     }
   };
 
