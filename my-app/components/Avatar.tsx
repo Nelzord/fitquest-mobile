@@ -8,7 +8,7 @@ interface AvatarProps {
   source?: ImageSourcePropType;
 }
 
-export const Avatar: React.FC<AvatarProps> = ({ size = 200, style, source }) => {
+export const Avatar: React.FC<AvatarProps> = ({ size = 100, style, source }) => {
   return (
     <ThemedView style={[styles.container, { width: size, height: size }, style]}>
       <Image

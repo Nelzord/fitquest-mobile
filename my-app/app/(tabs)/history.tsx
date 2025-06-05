@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, TouchableOpacity, FlatList, ActivityIndicator, Modal, ScrollView, Dimensions } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, View, TouchableOpacity, FlatList, ActivityIndicator, Modal, ScrollView, Dimensions, Alert } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -12,16 +12,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActivityChart } from '@/components/ActivityChart';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
+import { useFocusEffect } from '@react-navigation/native';
+import { format } from 'date-fns';
 
-type Workout = {
+interface Workout {
   id: string;
   created_at: string;
-  notes: string | null;
-  duration: number | null;
-  total_sets: number;
-  total_exercises: number;
-  total_volume: number;
-};
+  notes?: string;
+  exercises: Array<{
+    id: string;
+    name: string;
+    type: 'standard' | 'bodyweight' | 'timed';
+    sets: Array<{
+      id: string;
+      completed: boolean;
+      reps?: string;
+      weight?: string;
+      duration?: string;
+      distance?: string;
+    }>;
+  }>;
+  duration?: number;
+  total_sets?: number;
+  total_exercises?: number;
+  total_volume?: number;
+}
 
 type FilterOptions = {
   sortBy: 'date' | 'sets' | 'volume' | 'exercises';
@@ -96,14 +111,81 @@ export default function HistoryScreen() {
   const [timeRange, setTimeRange] = useState<TimeRange>('30');
   const [uniqueExercises, setUniqueExercises] = useState<Exercise[]>([]);
   const [setRange, setSetRange] = useState<SetRange>('10');
+  const [error, setError] = useState<string | null>(null);
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchWorkouts();
-      fetchWorkoutStats();
-      fetchExercises();
+  const fetchWorkouts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const { data, error: fetchError } = await supabase
+        .from('workouts')
+        .select(`
+          id,
+          created_at,
+          notes,
+          exercises (
+            id,
+            name,
+            type,
+            sets (
+              id,
+              completed,
+              reps,
+              weight,
+              duration,
+              distance
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      // Transform the data to match the Workout interface
+      const transformedWorkouts: Workout[] = (data || []).map(workout => ({
+        ...workout,
+        duration: 0, // Calculate this if needed
+        total_sets: workout.exercises?.reduce((acc, ex) => acc + (ex.sets?.length || 0), 0) || 0,
+        total_exercises: workout.exercises?.length || 0,
+        total_volume: 0 // Calculate this if needed
+      }));
+
+      setWorkouts(transformedWorkouts);
+
+      // Process data for activity chart
+      const activityMap = new Map<string, number>();
+      transformedWorkouts?.forEach(workout => {
+        const date = new Date(workout.created_at).toISOString().split('T')[0];
+        activityMap.set(date, (activityMap.get(date) || 0) + 1);
+      });
+
+      setActivityData(Array.from(activityMap.entries()).map(([date, count]) => ({
+        date,
+        count,
+      })));
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Error fetching workouts:', err);
+    } finally {
+      setLoading(false);
     }
-  }, [user]);
+  }, []);
+
+  // Use useFocusEffect to refetch workouts when the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchWorkouts();
+    }, [fetchWorkouts])
+  );
 
   useEffect(() => {
     applyFilters();
@@ -136,34 +218,6 @@ export default function HistoryScreen() {
       refreshData();
     }
   }, [user]);
-
-  const fetchWorkouts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('workouts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setWorkouts(data || []);
-
-      // Process data for activity chart
-      const activityMap = new Map<string, number>();
-      data?.forEach(workout => {
-        const date = new Date(workout.created_at).toISOString().split('T')[0];
-        activityMap.set(date, (activityMap.get(date) || 0) + 1);
-      });
-
-      setActivityData(Array.from(activityMap.entries()).map(([date, count]) => ({
-        date,
-        count,
-      })));
-    } catch (error) {
-      console.error('Error fetching workouts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchWorkoutStats = async () => {
     try {
@@ -399,22 +453,22 @@ export default function HistoryScreen() {
       case 'sets':
         sortedWorkouts.sort((a, b) => 
           filterOptions.order === 'asc' 
-            ? a.total_sets - b.total_sets
-            : b.total_sets - a.total_sets
+            ? (a.total_sets || 0) - (b.total_sets || 0)
+            : (b.total_sets || 0) - (a.total_sets || 0)
         );
         break;
       case 'volume':
         sortedWorkouts.sort((a, b) => 
           filterOptions.order === 'asc' 
-            ? a.total_volume - b.total_volume
-            : b.total_volume - a.total_volume
+            ? (a.total_volume || 0) - (b.total_volume || 0)
+            : (b.total_volume || 0) - (a.total_volume || 0)
         );
         break;
       case 'exercises':
         sortedWorkouts.sort((a, b) => 
           filterOptions.order === 'asc' 
-            ? a.total_exercises - b.total_exercises
-            : b.total_exercises - a.total_exercises
+            ? (a.total_exercises || 0) - (b.total_exercises || 0)
+            : (b.total_exercises || 0) - (a.total_exercises || 0)
         );
         break;
     }
@@ -445,7 +499,7 @@ export default function HistoryScreen() {
           </View>
           <View style={styles.statItem}>
             <IconSymbol name="chart.bar" size={16} color={Colors[colorScheme].tint} />
-            <ThemedText style={styles.statText}>{item.total_volume.toFixed(0)} volume</ThemedText>
+            <ThemedText style={styles.statText}>{(item.total_volume || 0).toFixed(0)} volume</ThemedText>
           </View>
         </View>
 

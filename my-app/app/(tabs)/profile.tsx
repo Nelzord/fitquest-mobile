@@ -658,6 +658,36 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  comingSoonContainer: {
+    padding: 16,
+    gap: 16,
+  },
+  comingSoonTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  comingSoonSection: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: Colors[colorScheme].cardBackground,
+    gap: 12,
+  },
+  comingSoonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  comingSoonSectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  comingSoonDescription: {
+    fontSize: 16,
+    opacity: 0.8,
+    lineHeight: 24,
+  },
 });
 
 export default function ProfileScreen() {
@@ -1278,73 +1308,44 @@ export default function ProfileScreen() {
   };
 
   const renderFriendsContent = () => {
-    if (loadingFriends) {
-      return <ActivityIndicator size="large" color={Colors[colorScheme].tint} />;
-    }
-
     return (
-      <ScrollView style={styles.friendsContainer}>
-        <View style={styles.friendCodeSection}>
-          <ThemedText style={styles.friendCodeTitle}>Your Friend Code</ThemedText>
-          <TouchableOpacity 
-            style={styles.friendCodeContainer}
-            onPress={() => {
-              if (showFriendCode && user?.id) {
-                Clipboard.setString(user.id);
-                Alert.alert('Copied!', 'Your friend code has been copied to clipboard');
-              }
-            }}
-          >
-            <ThemedText style={styles.friendCode}>
-              {showFriendCode ? user?.id : '••••••••••••••••'}
+      <ScrollView style={styles.contentContainer}>
+        <ThemedView style={styles.comingSoonContainer}>
+          <ThemedText style={styles.comingSoonTitle}>Coming Soon</ThemedText>
+          
+          {/* Battle Section */}
+          <ThemedView style={styles.comingSoonSection}>
+            <View style={styles.comingSoonHeader}>
+              <IconSymbol name="figure.boxing" size={24} color={Colors[colorScheme].tint} />
+              <ThemedText style={styles.comingSoonSectionTitle}>Battle</ThemedText>
+            </View>
+            <ThemedText style={styles.comingSoonDescription}>
+              Challenge your friends to epic workout battles! Compare your strength, endurance, and technique in head-to-head competitions. Win battles to earn exclusive rewards and climb the ranks.
             </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.toggleButton, { backgroundColor: Colors[colorScheme].tint }]}
-            onPress={() => setShowFriendCode(!showFriendCode)}
-          >
-            <ThemedText style={styles.toggleButtonText}>
-              {showFriendCode ? 'Hide Code' : 'Show Code'}
+          </ThemedView>
+
+          {/* Trade Section */}
+          <ThemedView style={styles.comingSoonSection}>
+            <View style={styles.comingSoonHeader}>
+              <IconSymbol name="arrow.triangle.2.circlepath" size={24} color={Colors[colorScheme].tint} />
+              <ThemedText style={styles.comingSoonSectionTitle}>Trade</ThemedText>
+            </View>
+            <ThemedText style={styles.comingSoonDescription}>
+              Exchange workout equipment, power-ups, and special items with your friends. Build your collection and create the perfect setup for your fitness journey.
             </ThemedText>
-          </TouchableOpacity>
-        </View>
+          </ThemedView>
 
-        <View style={styles.addFriendSection}>
-          <TextInput
-            style={[styles.friendInput, { color: Colors[colorScheme].text }]}
-            placeholder="Enter friend code"
-            value={newFriendId}
-            onChangeText={setNewFriendId}
-            placeholderTextColor={Colors[colorScheme].text}
-          />
-          <TouchableOpacity 
-            style={[styles.addFriendButton, { backgroundColor: Colors[colorScheme].tint }]}
-            onPress={handleAddFriend}
-          >
-            <ThemedText style={styles.addFriendButtonText}>Add Friend</ThemedText>
-          </TouchableOpacity>
-        </View>
-
-        {incomingRequests.length > 0 && (
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Incoming Requests</ThemedText>
-            {incomingRequests.map(request => renderFriendItem(request, true, true))}
-          </View>
-        )}
-
-        {outgoingRequests.length > 0 && (
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Outgoing Requests</ThemedText>
-            {outgoingRequests.map(request => renderFriendItem(request, true, false))}
-          </View>
-        )}
-
-        {friends.length > 0 && (
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Friends</ThemedText>
-            {friends.map(friend => renderFriendItem(friend))}
-          </View>
-        )}
+          {/* Compete Section */}
+          <ThemedView style={styles.comingSoonSection}>
+            <View style={styles.comingSoonHeader}>
+              <IconSymbol name="trophy" size={24} color={Colors[colorScheme].tint} />
+              <ThemedText style={styles.comingSoonSectionTitle}>Compete</ThemedText>
+            </View>
+            <ThemedText style={styles.comingSoonDescription}>
+              Become the Gym Saga Legend! Compete in global tournaments, climb the leaderboards, and prove you're the ultimate fitness warrior. Special rewards await those who reach the top!
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
       </ScrollView>
     );
   };
