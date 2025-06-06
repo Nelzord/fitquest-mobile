@@ -97,29 +97,42 @@ export default function InventoryScreen() {
     if (!user || !item.is_owned) return;
 
     try {
-      const { error: unequipError } = await supabase
-        .from('user_inventory')
-        .update({ is_equipped: false })
-        .eq('user_id', user.id)
-        .eq('is_equipped', true)
-        .in('item_id', items
-          .filter(i => i.slot_type === item.slot_type)
-          .map(i => i.id)
-        );
+      // If the item is already equipped, unequip it
+      if (item.is_equipped) {
+        const { error: unequipError } = await supabase
+          .from('user_inventory')
+          .update({ is_equipped: false })
+          .eq('user_id', user.id)
+          .eq('item_id', item.id);
 
-      if (unequipError) throw unequipError;
+        if (unequipError) throw unequipError;
+      } else {
+        // If equipping a new item, first unequip any item in the same slot
+        const { error: unequipError } = await supabase
+          .from('user_inventory')
+          .update({ is_equipped: false })
+          .eq('user_id', user.id)
+          .eq('is_equipped', true)
+          .in('item_id', items
+            .filter(i => i.slot_type === item.slot_type)
+            .map(i => i.id)
+          );
 
-      const { error: equipError } = await supabase
-        .from('user_inventory')
-        .update({ is_equipped: true })
-        .eq('user_id', user.id)
-        .eq('item_id', item.id);
+        if (unequipError) throw unequipError;
 
-      if (equipError) throw equipError;
+        // Then equip the new item
+        const { error: equipError } = await supabase
+          .from('user_inventory')
+          .update({ is_equipped: true })
+          .eq('user_id', user.id)
+          .eq('item_id', item.id);
+
+        if (equipError) throw equipError;
+      }
 
       fetchItems();
     } catch (error) {
-      console.error('Error equipping item:', error);
+      console.error('Error equipping/unequipping item:', error);
     }
   };
 

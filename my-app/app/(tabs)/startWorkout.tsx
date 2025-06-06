@@ -985,9 +985,9 @@ export default function StartWorkoutScreen() {
     const totalXPGain = Object.entries(muscleGroupGains)
       .filter(([key]) => key.endsWith('_xp'))
       .reduce((sum, [_, xp]) => sum + xp, 0);
-    const totalGoldGain = Object.entries(muscleGroupGains)
+    const totalGoldGain = Math.ceil(Object.entries(muscleGroupGains)
       .filter(([key]) => key.endsWith('_gold'))
-      .reduce((sum, [_, gold]) => sum + gold, 0);
+      .reduce((sum, [_, gold]) => sum + gold, 0));
 
     // Calculate new XP and check for level up
     const newXP = (currentStats?.xp || 0) + totalXPGain;
@@ -1001,7 +1001,7 @@ export default function StartWorkoutScreen() {
       .upsert({
         user_id: user.id,
         xp: Math.round(newXP),
-        gold: Math.round((currentStats?.gold || 0) + totalGoldGain),
+        gold: Math.ceil((currentStats?.gold || 0) + totalGoldGain),
         level: newLevel,
         chest_xp: Math.round((currentStats?.chest_xp || 0) + muscleGroupGains.chest_xp),
         back_xp: Math.round((currentStats?.back_xp || 0) + muscleGroupGains.back_xp),

@@ -16,6 +16,73 @@ interface Item {
   price: number;
 }
 
+// Add interface for item adjustments
+interface ItemAdjustments {
+  scale?: number;
+  position?: {
+    top?: number;
+    left?: number;
+    right?: number;
+    bottom?: number;
+  };
+  rotation?: number;
+  spacing?: number; // Add spacing for mirrored items
+}
+
+// Add configuration for item-specific adjustments
+const itemAdjustments: Record<string, ItemAdjustments> = {
+  'Sweatband': {
+    scale: 1.2,
+    position: { top: 0 }
+  },
+  'Basic Sneakers': {
+    scale: 1,
+    position: { bottom: 7 },
+    spacing: -60
+  },
+  'Cowboy Hat': {
+    scale: 1.3,
+    position: { top: -10 }
+  },
+  'Cowboy Vest': {
+    scale: 2.0,
+    position: { top: 5 }
+  },
+  'Cowboy Boots': {
+    scale: 1.1,
+    position: { bottom: 0 },
+    spacing: -62 // Add spacing between left and right boots
+  },
+  'Rice Hat': {
+    scale: 1.5,
+    position: { top: -5 }
+  },
+  'Iron Sword': {
+    scale: 2,
+    position: { top: -50, right: 12 }
+  },
+  'Phantom Cloak': {
+    scale: 2.5,
+    position: { top: 45 }
+  },
+  'Golden Crown': {
+    scale: 1.2,
+    position: { top: -18 }
+  },
+  'Training Cap': {
+    scale: 1.2,
+    position: { top: -5 }
+  },
+  'Leg Day Band': {
+    scale: 1.3,
+    position: { top: 90 }
+  },
+  'Hard Work Medal': {
+    scale: 1.2,
+    position: { top: 100, right: -5 }
+  }
+};
+
 interface EquippedItemsProps {
   items: Item[];
   style?: ViewStyle;
@@ -25,11 +92,11 @@ interface EquippedItemsProps {
 const slotPositions = {
   head: { top: -20, left: '50%', transform: [{ translateX: -40 }] } as ViewStyle,
   chest: { top: 80, left: '50%', transform: [{ translateX: -40 }] } as ViewStyle,
-  hands_left: { top: 110, left: '5%' } as ViewStyle,
-  hands_right: { top: 110, right: '5%' } as ViewStyle,
-  feet_left: { bottom: 0, left: '20%' } as ViewStyle,
-  feet_right: { bottom: 0, right: '20%' } as ViewStyle,
-  accessory: { top: 110, right: '5%' } as ViewStyle,
+  hands_left: { top: 110, left: 20 } as ViewStyle,
+  hands_right: { top: 110, right: 20 } as ViewStyle,
+  feet_left: { bottom: 0, left: 20 } as ViewStyle,
+  feet_right: { bottom: 0, right: 20 } as ViewStyle,
+  accessory: { top: 110, right: 20 } as ViewStyle,
 };
 
 // Helper to load images
@@ -52,6 +119,29 @@ export const getItemImage = (itemName: string): ImageSourcePropType => {
   return imageMap[itemName] || require('../assets/images/items/iron_sword.png');
 };
 
+// Update the slot positions to be dynamic based on item adjustments
+const getSlotPosition = (basePosition: ViewStyle, item?: Item): ViewStyle => {
+  if (!item) return basePosition;
+  
+  const adjustments = itemAdjustments[item.name] || {};
+  const spacing = adjustments.spacing || 0;
+  
+  // Create a new position object
+  const newPosition = { ...basePosition };
+  
+  // Handle left position
+  if (basePosition.left !== undefined && typeof basePosition.left === 'number') {
+    newPosition.left = basePosition.left - (spacing / 2);
+  }
+  
+  // Handle right position
+  if (basePosition.right !== undefined && typeof basePosition.right === 'number') {
+    newPosition.right = basePosition.right - (spacing / 2);
+  }
+  
+  return newPosition;
+};
+
 export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) => {
   const equippedItems = items.filter(item => item.is_equipped);
 
@@ -66,14 +156,14 @@ export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) =>
     <View style={[styles.container, style]}>
       {/* Head */}
       {headItem && (
-        <Slot position={slotPositions.head}>
+        <Slot position={getSlotPosition(slotPositions.head, headItem)}>
           <ImageOrPlaceholder item={headItem} />
         </Slot>
       )}
 
       {/* Chest */}
       {chestItem && (
-        <Slot position={slotPositions.chest}>
+        <Slot position={getSlotPosition(slotPositions.chest, chestItem)}>
           <ImageOrPlaceholder item={chestItem} scale={2} />
         </Slot>
       )}
@@ -81,10 +171,10 @@ export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) =>
       {/* Hands (mirror left and right) */}
       {handsItem && (
         <>
-          <Slot position={slotPositions.hands_left}>
+          <Slot position={getSlotPosition(slotPositions.hands_left, handsItem)}>
             <ImageOrPlaceholder item={handsItem} />
           </Slot>
-          <Slot position={slotPositions.hands_right}>
+          <Slot position={getSlotPosition(slotPositions.hands_right, handsItem)}>
             <ImageOrPlaceholder item={handsItem} />
           </Slot>
         </>
@@ -93,10 +183,10 @@ export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) =>
       {/* Feet (mirror left and right) */}
       {feetItem && (
         <>
-          <Slot position={slotPositions.feet_left}>
+          <Slot position={getSlotPosition(slotPositions.feet_left, feetItem)}>
             <ImageOrPlaceholder item={feetItem} />
           </Slot>
-          <Slot position={slotPositions.feet_right}>
+          <Slot position={getSlotPosition(slotPositions.feet_right, feetItem)}>
             <ImageOrPlaceholder item={feetItem} mirrored />
           </Slot>
         </>
@@ -104,7 +194,7 @@ export const EquippedItems: React.FC<EquippedItemsProps> = ({ items, style }) =>
 
       {/* Accessory */}
       {accessoryItem && (
-        <Slot position={slotPositions.accessory}>
+        <Slot position={getSlotPosition(slotPositions.accessory, accessoryItem)}>
           <ImageOrPlaceholder item={accessoryItem} />
         </Slot>
       )}
@@ -124,10 +214,21 @@ const ImageOrPlaceholder: React.FC<{ item: Item; mirrored?: boolean; scale?: num
   if (!item) return null;
   
   const imageSource = getItemImage(item.name);
+  const adjustments = itemAdjustments[item.name] || {};
+  const finalScale = adjustments.scale || scale;
+  const position = adjustments.position || {};
+  const rotation = adjustments.rotation || 0;
+
   const imageStyle = [
     styles.itemImage,
-    { transform: [{ scale }] },
-    mirrored && styles.mirrored
+    { 
+      transform: [
+        { scale: finalScale },
+        { rotate: `${rotation}deg` },
+        ...(mirrored ? [{ scaleX: -1 }] : [])
+      ]
+    },
+    position
   ];
 
   return imageSource ? (
@@ -156,9 +257,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'contain',
-  },
-  mirrored: {
-    transform: [{ scaleX: -1 }],
+    position: 'absolute',
   },
   placeholderImage: {
     width: '100%',

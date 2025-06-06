@@ -49,7 +49,9 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClos
               style={[styles.button, { backgroundColor: Colors[colorScheme].tint }]}
               onPress={onEquip}
             >
-              <ThemedText style={styles.buttonText}>Equip</ThemedText>
+              <ThemedText style={styles.buttonText}>
+                {item.is_equipped ? 'Unequip' : 'Equip'}
+              </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, { backgroundColor: Colors[colorScheme].borderColor }]}

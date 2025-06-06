@@ -76,6 +76,7 @@ interface RankInfo {
   minXP: number;
   letter: string;
   power: number;
+  percentile: number;
 }
 
 interface Friend {
@@ -97,13 +98,13 @@ interface PremiumStatus {
 }
 
 const RANKS: RankInfo[] = [
-  { name: 'Bronze', logo: require('@/assets/images/logos/bronzerank.png'), color: '#CD7F32', minXP: 0, letter: 'F', power: 0 },
-  { name: 'Silver', logo: require('@/assets/images/logos/silverrank.png'), color: '#C0C0C0', minXP: 50, letter: 'D', power: 1 },
-  { name: 'Gold', logo: require('@/assets/images/logos/goldrank.png'), color: '#FFD700', minXP: 150, letter: 'C', power: 2 },
-  { name: 'Platinum', logo: require('@/assets/images/logos/platinumrank.png'), color: '#E5E4E2', minXP: 300, letter: 'B', power: 3 },
-  { name: 'Diamond', logo: require('@/assets/images/logos/diamondrank.png'), color: '#B9F2FF', minXP: 500, letter: 'A', power: 4 },
-  { name: 'Master', logo: require('@/assets/images/logos/masterrank.png'), color: '#9932CC', minXP: 700, letter: 'S', power: 5 },
-  { name: 'Legend', logo: require('@/assets/images/logos/legendrank.png'), color: '#FF0000', minXP: 900, letter: 'SS', power: 6 },
+  { name: 'Bronze', logo: require('@/assets/images/logos/bronzerank.png'), color: '#CD7F32', minXP: 0, letter: 'F', power: 0, percentile: 1 },
+  { name: 'Silver', logo: require('@/assets/images/logos/silverrank.png'), color: '#C0C0C0', minXP: 50, letter: 'D', power: 1, percentile: 15 },
+  { name: 'Gold', logo: require('@/assets/images/logos/goldrank.png'), color: '#FFD700', minXP: 150, letter: 'C', power: 2, percentile: 30 },
+  { name: 'Platinum', logo: require('@/assets/images/logos/platinumrank.png'), color: '#E5E4E2', minXP: 300, letter: 'B', power: 3, percentile: 50 },
+  { name: 'Diamond', logo: require('@/assets/images/logos/diamondrank.png'), color: '#B9F2FF', minXP: 500, letter: 'A', power: 4, percentile: 75 },
+  { name: 'Master', logo: require('@/assets/images/logos/masterrank.png'), color: '#9932CC', minXP: 700, letter: 'S', power: 5, percentile: 90 },
+  { name: 'Legend', logo: require('@/assets/images/logos/legendrank.png'), color: '#FF0000', minXP: 900, letter: 'SS', power: 6, percentile: 99 },
 ];
 
 const ITEM_POWER_LEVELS = {
@@ -563,6 +564,82 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  bonusesContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: Colors[colorScheme].background,
+    borderRadius: 8,
+  },
+  bonusesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  bonusItem: {
+    marginBottom: 8,
+    padding: 8,
+    backgroundColor: Colors[colorScheme].cardBackground,
+    borderRadius: 6,
+  },
+  bonusItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bonusItemIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors[colorScheme].background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  bonusItemIcon: {
+    width: 24,
+    height: 24,
+  },
+  bonusItemContent: {
+    flex: 1,
+  },
+  bonusItemNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  bonusItemName: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  powerBadge: {
+    backgroundColor: Colors[colorScheme].tint,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  powerText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bonusItemEffect: {
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  noBonusesText: {
+    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   friendProfileModal: {
     width: '90%',
     maxHeight: '80%',
@@ -689,6 +766,24 @@ const getStyles = (colorScheme: 'light' | 'dark') => StyleSheet.create({
     lineHeight: 24,
   },
 });
+
+const getItemImage = (itemName: string) => {
+  const imageMap: Record<string, any> = {
+    'Sweatband': require('@/assets/images/items/sweatband.png'),
+    'Basic Sneakers': require('@/assets/images/items/basic_sneakers.png'),
+    'Cowboy Hat': require('@/assets/images/items/cowboy_hat.png'),
+    'Cowboy Vest': require('@/assets/images/items/cowboy_vest.png'),
+    'Cowboy Boots': require('@/assets/images/items/cowboy_boots.png'),
+    'Rice Hat': require('@/assets/images/items/rice_hat.png'),
+    'Iron Sword': require('@/assets/images/items/iron_sword.png'),
+    'Phantom Cloak': require('@/assets/images/items/phantom_cloak.png'),
+    'Golden Crown': require('@/assets/images/items/golden_crown.png'),
+    'Training Cap': require('@/assets/images/items/training_cap.png'),
+    'Leg Day Band': require('@/assets/images/items/leg_day_band.png'),
+    'Hard Work Medal': require('@/assets/images/items/hardwork_medal.png')
+  };
+  return imageMap[itemName] || require('@/assets/images/items/iron_sword.png');
+};
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme() ?? 'light';
@@ -1014,11 +1109,32 @@ export default function ProfileScreen() {
     }
   };
 
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      
+      if (data?.name) {
+        setDisplayName(data.name);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchUserStats();
       fetchItems();
       fetchFriends();
+      fetchUserProfile();
     }
   }, [user, fetchUserStats, fetchItems, fetchFriends]);
 
@@ -1541,6 +1657,26 @@ export default function ProfileScreen() {
                       {userStats?.gold || 0}
                     </ThemedText>
                   </View>
+                  <View style={styles.statItem}>
+                    <IconSymbol 
+                      name="chart.line.uptrend.xyaxis" 
+                      size={20} 
+                      color={Colors[colorScheme].text} 
+                    />
+                    <ThemedText style={styles.statText}>
+                      Top {getRankInfo(
+                        Math.floor((
+                          (userStats?.chest_xp || 0) +
+                          (userStats?.back_xp || 0) +
+                          (userStats?.legs_xp || 0) +
+                          (userStats?.shoulders_xp || 0) +
+                          (userStats?.arms_xp || 0) +
+                          (userStats?.core_xp || 0) +
+                          (userStats?.cardio_xp || 0)
+                        ) / 7)
+                      ).percentile}%
+                    </ThemedText>
+                  </View>
                 </View>
               </View>
             </ThemedView>
@@ -1584,6 +1720,39 @@ export default function ProfileScreen() {
                 <ThemedText style={styles.powerLevelText}>
                   Total Power Level: {calculateTotalPowerLevel()}
                 </ThemedText>
+              </View>
+
+              {/* Add equipped items bonuses section */}
+              <View style={styles.bonusesContainer}>
+                <ThemedText style={styles.bonusesTitle}>Current Bonuses Active:</ThemedText>
+                {items.filter(item => item.is_equipped).length > 0 ? (
+                  items.filter(item => item.is_equipped).map((item) => (
+                    <View key={item.id} style={styles.bonusItem}>
+                      <View style={styles.bonusItemHeader}>
+                        <View style={styles.bonusItemIconContainer}>
+                          <Image 
+                            source={getItemImage(item.name)} 
+                            style={styles.bonusItemIcon}
+                            resizeMode="contain"
+                          />
+                        </View>
+                        <View style={styles.bonusItemContent}>
+                          <View style={styles.bonusItemNameRow}>
+                            <ThemedText style={styles.bonusItemName}>{item.name}</ThemedText>
+                            <View style={styles.powerBadge}>
+                              <ThemedText style={styles.powerText}>
+                                +{ITEM_POWER_LEVELS[item.rarity]} Power
+                              </ThemedText>
+                            </View>
+                          </View>
+                          <ThemedText style={styles.bonusItemEffect}>{item.effect}</ThemedText>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <ThemedText style={styles.noBonusesText}>No items equipped</ThemedText>
+                )}
               </View>
             </ThemedView>
 
