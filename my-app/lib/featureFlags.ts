@@ -1,6 +1,6 @@
 // Feature flags for controlling app functionality
 export const FEATURE_FLAGS = {
-  WORKOUT_LIMIT: false, // Disable workout limit for now
+  WORKOUT_LIMIT: true, // Enable workout limit
 } as const;
 
 // Type for feature flag keys
